@@ -4,7 +4,6 @@ class Vctl < Formula
   url "https://github.com/nagraver/vctl.git",
       revision: "d584cd5fce8bb275dd7e1c58c06e57030b16e783"
   version "0.2.0"
-  revision 1
 
   depends_on :macos
   depends_on "python@3.14"
