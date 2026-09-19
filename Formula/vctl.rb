@@ -4,6 +4,7 @@ class Vctl < Formula
   url "https://github.com/nagraver/vctl.git",
       revision: "d584cd5fce8bb275dd7e1c58c06e57030b16e783"
   version "0.2.0"
+  revision 1
 
   depends_on :macos
   depends_on "python@3.14"
@@ -30,7 +31,7 @@ class Vctl < Formula
       (libexec/".tools").install "xray"
       (libexec/".tools/xray").chmod 0755
     end
-    zsh_completion.install libexec/"vless_client/completions/_vctl"
+    zsh_completion.install_symlink libexec/"vless_client/completions/_vctl"
     (bin/"vctl").write <<~SH
       #!/bin/sh
       export VCTL_HOME="${VCTL_HOME:-$HOME/.config/vctl}"
