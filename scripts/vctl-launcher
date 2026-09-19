@@ -1,0 +1,21 @@
+#!/bin/sh
+# Resolve symlinks so this launcher can be placed anywhere in PATH.
+set -eu
+launcher=$0
+while [ -L "$launcher" ]; do
+    target=$(readlink "$launcher")
+    case "$target" in
+        /*) launcher=$target ;;
+        *) launcher=$(dirname "$launcher")/$target ;;
+    esac
+done
+project_root=$(CDPATH= cd -- "$(dirname "$launcher")/.." && pwd)
+if [ -n "${VCTL_PYTHON:-}" ]; then
+    interpreter=$VCTL_PYTHON
+elif [ -x "$project_root/.venv/bin/python" ]; then
+    interpreter=$project_root/.venv/bin/python
+else
+    interpreter=$(command -v python3)
+fi
+export VCTL_HOME="${VCTL_HOME:-$project_root/.local}"
+exec "$interpreter" "$project_root/vctl" "$@"

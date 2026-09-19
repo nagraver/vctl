@@ -1,0 +1,54 @@
+#compdef vctl
+
+local i=2 cmd action offset previous="${words[CURRENT-1]}"
+local -a commands
+commands=(
+  'sub:Manage subscriptions' 'nodes:List servers' 'use:Select server or auto'
+  'ping:Check HTTPS latency' 'rule:Manage routing rules' 'default:Set default route'
+  'start:Start local proxy' 'run:Run in foreground' 'restart:Restart local proxy'
+  'stop:Stop local proxy' 'status:Show proxy status' 'doctor:Diagnostics'
+  'check:Validate configuration' 'tun:Manage system TUN' 'completion:Shell completion'
+)
+case "$previous" in
+  --home) _files -/; return ;;
+  --core) _files; return ;;
+  --mode) compadd proxy tun; return ;;
+  --port|--interval|--url) return ;;
+esac
+while (( i < CURRENT )); do
+  case "${words[i]}" in
+    --home|--core) (( i += 2 )) ;;
+    --home=*|--core=*) (( i++ )) ;;
+    *) break ;;
+  esac
+done
+if (( i == CURRENT )); then
+  _describe 'command' commands
+  compadd -- --home --core --help
+  return
+fi
+cmd="${words[i]}"
+offset=$(( CURRENT - i ))
+action="${words[i+1]}"
+case "$cmd" in
+  tun)
+    if (( offset == 1 )); then compadd start run restart stop status recover
+    elif [[ "$action" == (start|run|restart) ]]; then compadd -- --port --help
+    fi ;;
+  sub)
+    if (( offset == 1 )); then compadd add list update remove
+    elif [[ "$action" == add && "$PREFIX" == -* ]]; then compadd -- --url --interval --help
+    fi ;;
+  rule)
+    if (( offset == 1 )); then compadd add list remove
+    elif [[ "$action" == add ]]; then
+      if (( offset == 2 )); then compadd domain suffix cidr
+      elif (( offset == 4 )); then compadd direct proxy block
+      fi
+    fi ;;
+  default) compadd proxy direct ;;
+  use) compadd auto ;;
+  completion) compadd zsh ;;
+  start|run|restart|check) compadd -- --mode --port --help ;;
+  *) compadd -- --help ;;
+esac
