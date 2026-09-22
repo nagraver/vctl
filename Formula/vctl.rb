@@ -2,8 +2,8 @@ class Vctl < Formula
   desc "macOS CLI VPN client with subscriptions, routing rules, and native Xray TUN"
   homepage "https://github.com/nagraver/vctl"
   url "https://github.com/nagraver/vctl.git",
-      revision: "d584cd5fce8bb275dd7e1c58c06e57030b16e783"
-  version "0.2.0"
+      revision: "b3120a0fd80f249b9dda2f3507141a23fa8c20f0"
+  version "0.3.0"
 
   depends_on :macos
   depends_on "python@3.14"
