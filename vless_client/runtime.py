@@ -17,6 +17,7 @@ import urllib.parse
 from .config import generate
 from .storage import atomic_json, fetch
 from .macos import DNSLease
+from .routing_data import asset_env, refresh, validate_assets
 
 
 def core_binary(override=None):
@@ -31,8 +32,9 @@ def core_binary(override=None):
     return candidate
 
 
-def validate(binary, path):
-    result = subprocess.run([binary, 'run', '-test', '-c', str(path)], capture_output=True, timeout=20)
+def validate(binary, path, assets=None):
+    result = subprocess.run([binary, 'run', '-test', '-c', str(path)], capture_output=True, timeout=20,
+                            env=asset_env(assets) if assets else None)
     if result.returncode:
         # Core diagnostics can contain credentials; do not forward them to a terminal.
         raise ValueError('Xray rejected the configuration; current configuration preserved')
@@ -45,7 +47,8 @@ def prepare(store, binary, state, mode, port):
     candidate = store.home / 'candidate.json'
     atomic_json(candidate, config)
     try:
-        validate(binary, candidate)
+        validate_assets(store, binary, state)
+        validate(binary, candidate, store.state_home / 'geodata')
         os.replace(candidate, store.home / 'config.json')
     finally:
         candidate.unlink(missing_ok=True)
@@ -113,7 +116,7 @@ def ping(store, binary):
             port = free_port()
             while port == 65535:
                 port = free_port()
-            probe = dict(state, subscriptions={'probe': {'nodes': [node]}}, selected=node['id'], rules=[], default='proxy')
+            probe = dict(state, subscriptions={'probe': {'nodes': [node]}}, selected=node['id'], rules=[], presets={}, default='proxy')
             config = generate(probe, 'proxy', port)
             # A dedicated inbound ensures no user bypass rule can fake a successful probe.
             config['inbounds'] = config['inbounds'][:1]
@@ -188,7 +191,8 @@ def serve(store, binary, mode, port):
         quiet = open(os.devnull, 'w')
         def launch():
             process = subprocess.Popen([binary, 'run', '-c', str(store.home / 'config.json')],
-                                       stdout=quiet, stderr=quiet, start_new_session=True)
+                                       stdout=quiet, stderr=quiet, start_new_session=True,
+                                       env=asset_env(store.state_home / 'geodata'))
             if dns:
                 from .watchdog import process_command
                 atomic_json(store.home / 'runtime.json', {'instance': instance, 'pid': os.getpid(),
@@ -242,6 +246,7 @@ def serve(store, binary, mode, port):
                     try:
                         with store.lock():
                             current = store.read()
+                            refresh(store, current)
                             for name, sub in list(current['subscriptions'].items()):
                                 if time.time() - sub['updated'] >= sub['interval']:
                                     current['subscriptions'][name] = fetch(sub['url'], sub['interval'])
@@ -249,17 +254,20 @@ def serve(store, binary, mode, port):
                             if fingerprint != applied:
                                 previous = json.loads((store.home / 'config.json').read_text())
                                 prepare(store, binary, current, mode, port)
-                                stop_child()
-                                child = launch()
-                                try:
-                                    wait_ready(child, port)
-                                    if dns:
-                                        wait_tun_ready(child)
-                                except ValueError:
+                                updated = json.loads((store.home / 'config.json').read_text())
+                                # Refresh timestamps alone must not disconnect active sessions.
+                                if updated != previous:
                                     stop_child()
-                                    atomic_json(store.home / 'config.json', previous)
                                     child = launch()
-                                    raise ValueError('New configuration failed; previous configuration restored')
+                                    try:
+                                        wait_ready(child, port)
+                                        if dns:
+                                            wait_tun_ready(child)
+                                    except ValueError:
+                                        stop_child()
+                                        atomic_json(store.home / 'config.json', previous)
+                                        child = launch()
+                                        raise ValueError('New configuration failed; previous configuration restored')
                                 store.write(current)
                                 applied = fingerprint
                         last_error = ''

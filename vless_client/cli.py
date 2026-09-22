@@ -10,6 +10,7 @@ import time
 from .config import FIELDS, generate, make_rule
 from .runtime import command, core_binary, ping, prepare, restart, serve, start, validate
 from .storage import Store, atomic_json, fetch, subscription_name
+from .routing_data import DEFAULT_URL, load_preset, fetch_geodata, validate_assets
 
 
 def clean(text):
@@ -24,6 +25,7 @@ def parser():
     subs = p.add_subparsers(dest='command', required=True)
     completion = subs.add_parser('completion', help='Print shell completion file')
     completion.add_argument('shell', choices=['zsh'])
+    completion.add_argument('--values', choices=['preset'], help=argparse.SUPPRESS)
     sub = subs.add_parser('sub', help='Manage subscriptions').add_subparsers(dest='action', required=True)
     add = sub.add_parser('add')
     add.add_argument('name', nargs='?', help='Optional name; defaults to the subscription title')
@@ -46,6 +48,27 @@ def parser():
     rules.add_parser('list')
     r = rules.add_parser('remove')
     r.add_argument('index', type=int)
+    presets = subs.add_parser('preset', help='Manage named routing presets').add_subparsers(dest='action', required=True)
+    r = presets.add_parser('add')
+    r.add_argument('name')
+    r.add_argument('source', help='JSON file, HTTPS URL, builtin:lan or builtin:ads')
+    r.add_argument('--interval', type=int, default=43200)
+    presets.add_parser('list')
+    for name in ('show', 'remove', 'enable', 'disable'):
+        presets.add_parser(name).add_argument('name')
+    presets.add_parser('update').add_argument('name', nargs='?')
+    geo = subs.add_parser('geodata', help='Manage GeoIP/GeoSite databases').add_subparsers(dest='action', required=True)
+    geo.add_parser('status')
+    r = geo.add_parser('update')
+    r.add_argument('--geoip-url')
+    r.add_argument('--geosite-url')
+    r.add_argument('--interval', type=int)
+    dns = subs.add_parser('dns', help='Configure DNS for direct and VPN routes').add_subparsers(dest='action', required=True)
+    dns.add_parser('show')
+    r = dns.add_parser('set')
+    r.add_argument('--direct', help='HTTPS DNS URL with a literal IP host')
+    r.add_argument('--proxy', help='HTTPS DNS URL with a literal IP host')
+    r.add_argument('--strategy', choices=['UseIP', 'UseIPv4', 'UseIPv6'])
     policy = subs.add_parser('default')
     policy.add_argument('target', choices=['proxy', 'direct'])
     for name in ('start', 'run', '_serve', 'check'):
@@ -66,6 +89,17 @@ def parser():
 
 def run(args):
     if args.command == 'completion':
+        if args.values:
+            # Completion must not create a profile, contact servers or require Xray.
+            path = Path(args.home).expanduser() / 'state.json'
+            try:
+                state = json.loads(path.read_text())
+                for name in state.get('presets', {}):
+                    if name and all(c.isprintable() for c in name):
+                        print(name)
+            except (OSError, ValueError, TypeError, AttributeError):
+                pass
+            return
         from .completion import ZSH
         print(ZSH)
         return
@@ -96,7 +130,7 @@ def run(args):
             for n in sub['nodes']:
                 print(n['id'], clean(name), clean(n['name']), n['outbound']['type'])
         return
-    if args.command in ('sub', 'rule', 'use', 'default'):
+    if args.command in ('sub', 'rule', 'use', 'default', 'preset', 'geodata', 'dns'):
         with store.lock():
             s = store.read()
             if args.command == 'sub':
@@ -140,6 +174,62 @@ def run(args):
                     if not 1 <= args.index <= len(s['rules']):
                         raise ValueError('Invalid rule index')
                     s['rules'].pop(args.index - 1)
+            elif args.command == 'preset':
+                presets = s.setdefault('presets', {})
+                if args.action == 'list':
+                    for name, preset in presets.items():
+                        print(clean(name), 'enabled' if preset['enabled'] else 'disabled', len(preset['rules']), 'rules')
+                    return
+                if args.action == 'add':
+                    if args.name in presets:
+                        raise ValueError('Preset already exists; use preset update')
+                    presets[args.name] = load_preset(args.source, args.interval)
+                else:
+                    names = [args.name] if args.name else list(presets)
+                    for name in names:
+                        if name not in presets:
+                            raise ValueError('Unknown preset')
+                        preset = presets[name]
+                        if args.action == 'show':
+                            print(json.dumps(preset, ensure_ascii=False, indent=2))
+                            return
+                        if args.action == 'remove':
+                            del presets[name]
+                        elif args.action in ('enable', 'disable'):
+                            preset['enabled'] = args.action == 'enable'
+                        elif args.action == 'update':
+                            presets[name] = dict(load_preset(preset['source'], preset['interval']), enabled=preset['enabled'])
+            elif args.command == 'geodata':
+                assets = s.setdefault('geodata', {})
+                if args.action == 'status':
+                    for kind, asset in assets.items():
+                        print(kind, asset['sha256'], 'age=' + str(int(time.time() - asset['updated'])) + 's')
+                    return
+                for kind in ('geoip', 'geosite'):
+                    old = assets.get(kind, {})
+                    url = getattr(args, kind + '_url') or old.get('url', DEFAULT_URL.format(kind))
+                    interval = args.interval if args.interval is not None else old.get('interval', 86400)
+                    assets[kind] = fetch_geodata(store, kind, url, interval)
+            elif args.command == 'dns':
+                options = s.setdefault('dns', {})
+                if args.action == 'show':
+                    print(json.dumps(dict(direct='https://1.1.1.1/dns-query', proxy='https://1.1.1.1/dns-query', strategy='UseIP') | options, indent=2))
+                    return
+                from urllib.parse import urlsplit
+                import ipaddress
+                for action in ('direct', 'proxy'):
+                    value = getattr(args, action)
+                    if value:
+                        url = urlsplit(value)
+                        if url.scheme != 'https' or not url.hostname or url.username or url.password or url.fragment:
+                            raise ValueError('DNS requires an HTTPS URL without credentials or fragment')
+                        try:
+                            ipaddress.ip_address(url.hostname)
+                        except ValueError:
+                            raise ValueError('DNS URL must use an IP host to avoid bootstrap loops') from None
+                        options[action] = value
+                if args.strategy:
+                    options['strategy'] = args.strategy
             elif args.command == 'use':
                 ids = {n['id'] for sub in s['subscriptions'].values() for n in sub['nodes']}
                 if args.node != 'auto' and args.node not in ids:
@@ -147,15 +237,23 @@ def run(args):
                 s['selected'] = args.node
             else:
                 s['default'] = args.target
-            if s['subscriptions']:
-                path = store.home / 'validation.json'
-                try:
-                    atomic_json(path, generate(s))
-                    validate(core_binary(args.core), path)
-                finally:
-                    path.unlink(missing_ok=True)
-            elif command(store, 'status') != 'stopped':
+            binary = core_binary(args.core)
+            validate_assets(store, binary, s)
+            if not s['subscriptions'] and command(store, 'status') != 'stopped':
                 raise ValueError('Stop the client before removing the last subscription')
+            # Validate routing even before the first subscription has been added.
+            if s['subscriptions']:
+                validation_state = s
+            else:
+                from .profiles import parse_uri
+                node = parse_uri('trojan://validation@127.0.0.1:1?security=tls#Validation')
+                validation_state = dict(s, subscriptions={'validation': {'nodes': [node]}}, selected=node['id'])
+            path = store.home / 'validation.json'
+            try:
+                atomic_json(path, generate(validation_state))
+                validate(binary, path, store.state_home / 'geodata')
+            finally:
+                path.unlink(missing_ok=True)
             store.write(s)
         if args.command == 'sub' and args.action == 'add':
             print('Subscription:', clean(name))
@@ -182,7 +280,8 @@ def run(args):
             path = store.home / 'validation.json'
             try:
                 atomic_json(path, generate(store.read(), args.mode, args.port))
-                validate(binary, path)
+                validate_assets(store, binary, store.read())
+                validate(binary, path, store.state_home / 'geodata')
             finally:
                 path.unlink(missing_ok=True)
         print('Configuration valid')

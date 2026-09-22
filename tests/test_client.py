@@ -69,10 +69,10 @@ class ConfigTests(unittest.TestCase):
         s['rules'] = [make_rule('suffix', 'example.org', 'direct'), make_rule('domain', 'exact.example.org', 'proxy'), make_rule('cidr', '10.0.0.0/8', 'block')]
         c = generate(s, 'tun')
         self.assertEqual(c['routing']['rules'][-1]['balancerTag'], 'auto')
-        self.assertEqual(c['routing']['rules'][2]['outboundTag'], 'direct')
-        self.assertEqual(c['routing']['rules'][2]['domain'], ['domain:example.org'])
-        self.assertEqual(c['dns']['servers'][0]['address'], 'https+local://1.1.1.1/dns-query')
-        self.assertEqual(c['routing']['rules'][4]['outboundTag'], 'block')
+        self.assertEqual(c['routing']['rules'][3]['outboundTag'], 'direct')
+        self.assertEqual(c['routing']['rules'][3]['domain'], ['domain:example.org'])
+        self.assertEqual(c['dns']['servers'][0]['tag'], 'dns-direct')
+        self.assertEqual(c['routing']['rules'][5]['outboundTag'], 'block')
         self.assertEqual(c['inbounds'][-1]['settings']['autoSystemRoutingTable'], ['0.0.0.0/0', '::/0'])
 
     def test_xray_reality_fields_and_selection(self):
@@ -86,9 +86,11 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(c['routing']['rules'][-1]['outboundTag'], 'node-' + node['id'])
         self.assertNotIn('observatory', c)
 
-    def test_legacy_process_rules_rejected(self):
+    def test_process_rules_are_scoped_to_tun(self):
         s = state(); s['rules'] = [{'kind': 'process', 'value': 'curl', 'action': 'direct'}]
-        with self.assertRaisesRegex(ValueError, 'macOS'): generate(s)
+        rule = generate(s, 'tun')['routing']['rules'][3]
+        self.assertEqual(rule['process'], ['curl'])
+        self.assertEqual(rule['inboundTag'], ['tun-in'])
 
     def test_xray_trojan(self):
         n = parse_uri('trojan://secret@example.com:443?security=tls#Test')
@@ -117,7 +119,7 @@ class ConfigTests(unittest.TestCase):
         if not core.exists(): self.skipTest('Xray not installed')
         with tempfile.TemporaryDirectory() as d:
             s = state()
-            s['rules'] = [make_rule(k, v, 'direct') for k, v in [('suffix', 'example.org'), ('domain', 'exact.example.org'), ('cidr', '10.0.0.0/8')]]
+            s['rules'] = [make_rule(k, v, 'direct') for k, v in [('suffix', 'example.org'), ('domain', 'exact.example.org'), ('cidr', '10.0.0.0/8'), ('process', 'curl'), ('path', '/Applications/Safari.app')]]
             for mode in ('proxy', 'tun'):
                 p = Path(d) / 'config.json'; atomic_json(p, generate(s, mode))
                 r = subprocess.run([str(core), 'run', '-test', '-c', str(p)], capture_output=True, text=True)

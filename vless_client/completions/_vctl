@@ -8,12 +8,14 @@ commands=(
   'start:Start local proxy' 'run:Run in foreground' 'restart:Restart local proxy'
   'stop:Stop local proxy' 'status:Show proxy status' 'doctor:Diagnostics'
   'check:Validate configuration' 'tun:Manage system TUN' 'completion:Shell completion'
+  'preset:Manage routing presets' 'geodata:Update GeoIP and GeoSite' 'dns:Configure DNS'
 )
 case "$previous" in
   --home) _files -/; return ;;
   --core) _files; return ;;
   --mode) compadd proxy tun; return ;;
-  --port|--interval|--url) return ;;
+  --port|--interval|--url|--geoip-url|--geosite-url|--direct|--proxy) return ;;
+  --strategy) compadd UseIP UseIPv4 UseIPv6; return ;;
 esac
 while (( i < CURRENT )); do
   case "${words[i]}" in
@@ -42,9 +44,30 @@ case "$cmd" in
   rule)
     if (( offset == 1 )); then compadd add list remove
     elif [[ "$action" == add ]]; then
-      if (( offset == 2 )); then compadd domain suffix cidr
+      if (( offset == 2 )); then compadd domain suffix cidr geoip geosite process path
+      elif (( offset == 3 )) && [[ "${words[i+2]}" == path ]]; then _files
       elif (( offset == 4 )); then compadd direct proxy block
       fi
+    fi ;;
+  preset)
+    if (( offset == 1 )); then compadd add list show update remove enable disable
+    elif (( offset == 2 )) && [[ "$action" == (show|update|remove|enable|disable) ]]; then
+      local -a profile_args preset_names
+      if (( i > 2 )); then profile_args=("${words[@]:1:$((i-2))}"); fi
+      preset_names=("${(@f)$("${words[1]}" "${profile_args[@]}" completion zsh --values preset 2>/dev/null)}")
+      (( ${#preset_names} )) && compadd -- "${preset_names[@]}"
+    elif [[ "$action" == add ]]; then
+      if (( offset == 3 )); then compadd builtin:lan builtin:ads; _files
+      elif [[ "$PREFIX" == -* ]]; then compadd -- --interval --help
+      fi
+    fi ;;
+  geodata)
+    if (( offset == 1 )); then compadd status update
+    elif [[ "$action" == update ]]; then compadd -- --geoip-url --geosite-url --interval --help
+    fi ;;
+  dns)
+    if (( offset == 1 )); then compadd show set
+    elif [[ "$action" == set ]]; then compadd -- --direct --proxy --strategy --help
     fi ;;
   default) compadd proxy direct ;;
   use) compadd auto ;;

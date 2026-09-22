@@ -1,20 +1,56 @@
 """Xray configuration; stored node IDs remain compatible with existing profiles."""
 import ipaddress
+import re
+from pathlib import PurePosixPath
 
-FIELDS = {'domain': 'domain', 'suffix': 'domain', 'cidr': 'ip'}
+FIELDS = {'domain': 'domain', 'suffix': 'domain', 'cidr': 'ip',
+          'geoip': 'ip', 'geosite': 'domain', 'process': 'process', 'path': 'process'}
 PRIVATE = ['10.0.0.0/8','172.16.0.0/12','192.168.0.0/16','127.0.0.0/8','169.254.0.0/16','::1/128','fc00::/7','fe80::/10']
 
 
 def make_rule(kind, value, action):
-    if kind in ('process', 'path'):
-        raise ValueError('Xray does not support process/path routing on macOS; use domain, suffix or cidr')
     if action not in ('direct', 'proxy', 'block') or kind not in FIELDS:
         raise ValueError('Invalid routing rule')
-    if not value or any(ord(c) < 32 for c in value):
+    if not isinstance(value, str) or not value or any(ord(c) < 32 for c in value):
         raise ValueError('Invalid rule value')
     if kind == 'cidr':
         value = str(ipaddress.ip_network(value, strict=False))
+    elif kind in ('domain', 'suffix'):
+        value = value.rstrip('.').encode('idna').decode('ascii').lower()
+        if len(value) > 253 or not all(re.fullmatch(r'[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?', part) for part in value.split('.')):
+            raise ValueError('Use a hostname without scheme, port, wildcard or path')
+    elif kind in ('geoip', 'geosite'):
+        value = value.lower()
+        if not re.fullmatch(r'[a-z0-9_!-]+(?:@[a-z0-9_!-]+)?', value):
+            raise ValueError('Invalid geodata category')
+    elif kind == 'process' and '/' in value:
+        raise ValueError('Use path for an absolute executable or application path')
+    elif kind == 'path':
+        if not value.startswith('/'):
+            raise ValueError('Application path must be absolute')
+        trailing = value.endswith('/') or value.endswith('.app')
+        value = str(PurePosixPath(value)) + ('/' if trailing else '')
     return {'kind': kind, 'value': value, 'action': action}
+
+
+def effective_rules(state):
+    rules = list(state['rules'])
+    for preset in state.get('presets', {}).values():
+        if preset.get('enabled', True):
+            rules.extend(preset['rules'])
+    return [make_rule(**rule) for rule in rules]
+
+
+def rule_value(rule, state):
+    kind, value = rule['kind'], rule['value']
+    if kind in ('domain', 'suffix'):
+        return ('full:' if kind == 'domain' else 'domain:') + value
+    if kind in ('geoip', 'geosite'):
+        digest = state.get('geodata', {}).get(kind, {}).get('sha256', '')
+        if not re.fullmatch('[0-9a-f]{64}', digest):
+            raise ValueError('Geodata missing; run vctl geodata update first')
+        return f'ext:{digest}.dat:{value}'
+    return value
 
 
 def outbound(node):
@@ -65,18 +101,31 @@ def generate(state, mode='proxy', port=2080):
         if action == 'proxy':
             return {'balancerTag': 'auto'} if chosen == 'auto' else {'outboundTag': 'node-' + chosen}
         return {'outboundTag': action}
-    rules = [{'type': 'field', 'inboundTag': ['dns-query'], **target(state['default'])},
+    rules = [{'type': 'field', 'inboundTag': ['dns-direct'], 'outboundTag': 'direct'},
+             {'type': 'field', 'inboundTag': ['dns-proxy'], **target('proxy')},
              {'type': 'field', 'port': '53', 'outboundTag': 'dns-out'}]
-    direct_domains = []
-    for raw in state['rules']:
-        r = make_rule(**raw); value = r['value']
-        if r['kind'] in ('domain', 'suffix'):
-            value = ('full:' if r['kind'] == 'domain' else 'domain:') + value
-            if r['action'] == 'direct': direct_domains.append(value)
-        rules.append({'type': 'field', FIELDS[r['kind']]: [value], **target(r['action'])})
+    dns_servers = []
+    dns_options = state.get('dns', {})
+    def resolver(action, domains=None):
+        result = {'address': dns_options.get(action, 'https://1.1.1.1/dns-query'),
+                  'tag': 'dns-' + action}
+        if domains:
+            result.update(domains=domains, skipFallback=True, finalQuery=True)
+        return result
+    for r in effective_rules(state):
+        value = rule_value(r, state)
+        rule = {'type': 'field', FIELDS[r['kind']]: [value], **target(r['action'])}
+        if r['kind'] in ('process', 'path'):
+            # A proxy socket belongs to the proxy client, not necessarily the original app.
+            rule['inboundTag'] = ['tun-in']
+        rules.append(rule)
+        if r['kind'] in ('domain', 'suffix', 'geosite'):
+            # Preserve first-match routing order, even for overlapping suffixes/lists.
+            action = r['action'] if r['action'] != 'block' else state['default']
+            dns_servers.append(resolver(action, [value]))
     rules.extend([{'type': 'field', 'ip': PRIVATE, 'outboundTag': 'direct'},
                   {'type': 'field', 'network': 'tcp,udp', **target(state['default'])}])
-    sniff = {'enabled': True, 'destOverride': ['http', 'tls', 'quic'], 'routeOnly': True}
+    sniff = {'enabled': True, 'destOverride': ['http', 'tls', 'quic'], 'routeOnly': False}
     inbounds = [{'tag': 'socks-in', 'listen': '127.0.0.1', 'port': port, 'protocol': 'socks',
                  'settings': {'auth': 'noauth', 'udp': True}, 'sniffing': sniff},
                 {'tag': 'http-in', 'listen': '127.0.0.1', 'port': port + 1, 'protocol': 'http',
@@ -86,12 +135,10 @@ def generate(state, mode='proxy', port=2080):
             'mtu': 1500, 'gateway': ['172.28.0.1/30'],
             'autoSystemRoutingTable': ['0.0.0.0/0', '::/0'], 'autoOutboundsInterface': 'auto'},
             'sniffing': sniff})
-    dns_servers = []
-    if direct_domains:
-        dns_servers.append({'address': 'https+local://1.1.1.1/dns-query', 'domains': direct_domains, 'skipFallback': True})
-    dns_servers.append('https://1.1.1.1/dns-query' if state['default'] == 'proxy' else 'https+local://1.1.1.1/dns-query')
+    dns_servers.append(resolver(state['default']))
     config = {'log': {'loglevel': 'warning'}, 'inbounds': inbounds,
-              'dns': {'servers': dns_servers, 'tag': 'dns-query', 'queryStrategy': 'UseIP'},
+              'dns': {'servers': dns_servers, 'tag': 'dns-' + state['default'],
+                      'queryStrategy': dns_options.get('strategy', 'UseIP'), 'disableFallbackIfMatch': True},
               'outbounds': [outbound(n) for n in nodes.values()] + [
                   {'protocol': 'freedom', 'tag': 'direct', 'settings': {'domainStrategy': 'UseIP'}},
                   {'protocol': 'blackhole', 'tag': 'block', 'settings': {}},
