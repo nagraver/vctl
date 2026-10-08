@@ -48,7 +48,12 @@ class RestartIntegrationTests(unittest.TestCase):
     def test_real_restart_keeps_port_changes_pid(self):
         with tempfile.TemporaryDirectory(dir='/tmp', prefix='vctl-') as directory:
             store=Store(directory)
-            store.write(state())
+            profile = state()
+            profile['subscriptions']['test']['updated'] = time.time()
+            node = profile['subscriptions']['test']['nodes'][0]
+            node['outbound'].update(server='127.0.0.1', server_port=1)
+            profile['selected'] = node['id']
+            store.write(profile)
             binary=core_binary()
             port=free_port()
             try:

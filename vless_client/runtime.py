@@ -104,7 +104,7 @@ def wait_tun_ready(process, timeout=5):
     raise ValueError('TUN route did not become ready; DNS was not changed')
 
 
-def ping(store, binary):
+def ping(store, binary, interface=None):
     state = store.read()
     if urllib.parse.urlsplit(state['test_url']).scheme != 'https':
         raise ValueError('Probe URL must use HTTPS')
@@ -118,6 +118,11 @@ def ping(store, binary):
                 port = free_port()
             probe = dict(state, subscriptions={'probe': {'nodes': [node]}}, selected=node['id'], rules=[], presets={}, default='proxy')
             config = generate(probe, 'proxy', port)
+            if interface:
+                # Preflight during migration must reach the server outside the existing TUN.
+                for outbound in config['outbounds']:
+                    if outbound['tag'].startswith('node-'):
+                        outbound.setdefault('streamSettings', {}).setdefault('sockopt', {})['interface'] = interface
             # A dedicated inbound ensures no user bypass rule can fake a successful probe.
             config['inbounds'] = config['inbounds'][:1]
             config['routing']['rules'] = [{'type': 'field', 'network': 'tcp,udp', 'outboundTag': 'node-' + node['id']}]
@@ -234,6 +239,7 @@ def serve(store, binary, mode, port):
                                 if op == 'stop':
                                     running = False
                                 response = json.dumps({'mode': mode, 'pid': os.getpid(), 'core_pid': child.pid,
+                                                       'manager': 'launchd' if os.environ.get('VCTL_LAUNCHD_LABEL') else 'standalone',
                                                        'engine': 'xray', 'socks_port': port, 'http_port': port + 1,
                                                        'error': last_error, 'stopping': not running})
                                 conn.sendall(response.encode())

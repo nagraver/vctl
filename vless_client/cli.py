@@ -11,6 +11,7 @@ from .config import FIELDS, generate, make_rule
 from .runtime import command, core_binary, ping, prepare, restart, serve, start, validate
 from .storage import Store, atomic_json, fetch, subscription_name
 from .routing_data import DEFAULT_URL, load_preset, fetch_geodata, validate_assets
+from .output import print_status
 
 
 def clean(text):
@@ -81,9 +82,13 @@ def parser():
     r.add_argument('--mode', choices=['proxy', 'tun'])
     r.add_argument('--port', type=int)
     tun = subs.add_parser('tun', help='System-wide VPN; requests sudo automatically',
-                         description='TUN lifecycle: start (background), run (foreground), restart, stop, status, recover. Manage settings without tun.')
+                         description='TUN lifecycle via launchd: start, restart, stop, status, install, uninstall, recover; run for foreground diagnostics.')
     tun.add_argument('tun_args', nargs=argparse.REMAINDER, metavar='ACTION')
     subs.add_parser('_tun-root', help=argparse.SUPPRESS)
+    service = subs.add_parser('_tun-service', help=argparse.SUPPRESS)
+    service.add_argument('--profile', required=True)
+    service.add_argument('--owner', type=int, required=True)
+    service.add_argument('--port', type=int, default=2180)
     return p
 
 
@@ -106,6 +111,9 @@ def run(args):
     if args.command == '_tun-root':
         from .tun import root_dispatch
         return root_dispatch()
+    if args.command == '_tun-service':
+        from .launchd import serve as serve_service
+        return serve_service(args.profile, args.owner, core_binary(args.core), args.port)
     store = Store(args.home, args.state_home)
     if args.command == 'tun':
         from .tun import dispatch
@@ -118,10 +126,10 @@ def run(args):
             for _ in range(100):
                 time.sleep(.1)
                 if command(store, 'status') == 'stopped':
-                    print('Stopped')
+                    print_status('stopped')
                     return
             raise ValueError('Stop pending; check status again')
-        print(response)
+        print_status(response)
         return
     if args.command == 'nodes':
         s = store.read()
@@ -270,10 +278,10 @@ def run(args):
         serve(store, binary, args.mode, args.port)
     elif args.command == 'restart':
         restart(store, binary, args.mode, args.port)
-        print('Restarted.', command(store, 'status'))
+        print_status(command(store, 'status'))
     elif args.command == 'start':
         start(store, binary, args.mode, args.port)
-        print('Started.', command(store, 'status'))
+        print_status(command(store, 'status'))
     elif args.command == 'check':
         # Validation never replaces a running core's configuration.
         with store.lock():
@@ -289,7 +297,8 @@ def run(args):
         version = subprocess.run([binary, 'version'], capture_output=True, text=True, timeout=10)
         print(version.stdout.splitlines()[0])
         print('State:', store.home)
-        print('Runtime:', command(store, 'status'))
+        print('Runtime:')
+        print_status(command(store, 'status'))
         print('SOCKS: 127.0.0.1:2080; HTTP: 127.0.0.1:2081; mode tun requires root.')
 
 

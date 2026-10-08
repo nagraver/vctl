@@ -32,7 +32,7 @@ def atomic_json(path, value):
 
 
 class Store:
-    def __init__(self, home, state_home=None):
+    def __init__(self, home, state_home=None, owner_uid=None):
         self.home = Path(home).expanduser().resolve()
         self.home.mkdir(parents=True, exist_ok=True, mode=0o700)
         if self.home.stat().st_uid != os.geteuid():
@@ -43,7 +43,8 @@ class Store:
         self.state_home = Path(state_home).expanduser().resolve() if state_home else self.home
         if self.state_home != self.home:
             owner = self.state_home.stat().st_uid
-            if os.geteuid() != 0 or owner != int(os.environ.get('SUDO_UID', '-1')):
+            expected_owner = int(os.environ.get('SUDO_UID', '-1')) if owner_uid is None else owner_uid
+            if os.geteuid() != 0 or owner != expected_owner:
                 raise ValueError('Shared profile must belong to the sudo caller')
         self.path = self.state_home / 'state.json'
 

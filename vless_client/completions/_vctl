@@ -34,8 +34,8 @@ offset=$(( CURRENT - i ))
 action="${words[i+1]}"
 case "$cmd" in
   tun)
-    if (( offset == 1 )); then compadd start run restart stop status recover
-    elif [[ "$action" == (start|run|restart) ]]; then compadd -- --port --help
+    if (( offset == 1 )); then compadd start run restart stop status recover install uninstall
+    elif [[ "$action" == (start|run|restart|install) ]]; then compadd -- --port --help
     fi ;;
   sub)
     if (( offset == 1 )); then compadd add list update remove
