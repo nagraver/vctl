@@ -2,8 +2,8 @@ class Vctl < Formula
   desc "macOS CLI VPN client with subscriptions, routing rules, and native Xray TUN"
   homepage "https://github.com/nagraver/vctl"
   url "https://github.com/nagraver/vctl.git",
-      revision: "b3120a0fd80f249b9dda2f3507141a23fa8c20f0"
-  version "0.3.0"
+      revision: "9449c598de557040ef0d78f44afc09dc4799ccf1"
+  version "0.4.0"
 
   depends_on :macos
   depends_on "python@3.14"
@@ -42,7 +42,8 @@ class Vctl < Formula
   def caveats
     <<~EOS
       Settings are stored in ~/.config/vctl, or in VCTL_HOME when set.
-      TUN: vctl tun start (requests sudo). Stop it before upgrading/uninstalling.
+      TUN: vctl tun start (launchd; requests sudo). Stop it before upgrading.
+      Before uninstalling the package, run vctl tun uninstall to remove its system service.
       zsh completion is installed automatically; configure Homebrew shellenv
       before compinit or Oh My Zsh to enable it.
     EOS
