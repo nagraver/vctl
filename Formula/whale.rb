@@ -2,7 +2,8 @@ class Whale < Formula
   desc "macOS CLI VPN client with subscriptions, routing rules, and native Xray TUN"
   homepage "https://github.com/nagraver/vctl"
   url "https://github.com/nagraver/vctl.git",
-      tag: "v0.5.0"
+      tag: "v0.5.0",
+      revision: "bebbf804fd6400aaddc84256ddfa533594c160a8"
   version "0.5.0"
 
   depends_on :macos
