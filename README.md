@@ -1,6 +1,6 @@
-# vctl
+# 🐋 whale
 
-**VPN для macOS — из терминала.**
+**VPN для macOS с интерактивным интерфейсом прямо в терминале.**
 
 Подключайте подписки VLESS/Trojan, выбирайте сервер и задавайте исключения
 для трафика. Системный TUN и локальный прокси на базе **Xray-core**.
@@ -13,13 +13,13 @@
 
 ## 📦 Установка
 
-Нужны macOS и установленный Homebrew. Python, Xray и дополнение для zsh
-устанавливаются вместе с клиентом.
+Нужны macOS и установленный Homebrew. Whale собирается в самостоятельный
+Go-бинарник; Python для работы не нужен. Xray и автодополнение устанавливаются вместе с клиентом.
 
 ```sh
-brew trust --formula nagraver/vctl/vctl
+brew trust --formula nagraver/vctl/whale
 brew tap nagraver/vctl https://github.com/nagraver/vctl.git
-brew install nagraver/vctl/vctl
+brew install nagraver/vctl/whale
 ```
 
 В Homebrew до версии 7, где нет команды `brew trust`, пропустите первую строку.
@@ -27,9 +27,45 @@ brew install nagraver/vctl/vctl
 ## 🚀 Первое подключение
 
 ```sh
-vctl sub add       # вставьте ссылку на подписку в скрытый запрос
-vctl tun start    # включите VPN для системы
-vctl tun status   # проверьте состояние клиента
+whale
+```
+
+Откроется панель управления. Выберите **Subscriptions → Add subscription**, вставьте
+ссылку, затем вернитесь на главный экран и включите тумблер **TUN**.
+**TUN** и **Proxy** независимы: тумблер TUN находится на главном экране,
+а тумблер прокси — во втором пункте, внутри меню управления прокси. Состояние обновляется автоматически.
+
+Язык по умолчанию — английский. В **Language / Язык** можно выбрать **Русский**.
+Выбор сохраняется в поле `ui.language` существующего `state.json`.
+Технические ответы Xray и подкоманд могут оставаться на английском.
+
+- **↑ / ↓** или **j / k** — выбор пункта; **Enter** — открыть или выполнить.
+- **Tab** — следующее поле формы; **Enter** в последнем поле — сохранить.
+- **Esc** — вернуться или отменить форму; **q** — закрыть интерфейс.
+- Результаты команд прокручиваются стрелками и **PgUp / PgDn**.
+- Удаление подписок, правил, пресетов и службы требует подтверждения.
+
+Закрытие интерфейса не выключает VPN. Второй пункт открывает управление локальным
+прокси: включение, выключение, перезапуск, статус и выбор порта. Во время операций
+панель остаётся на экране и показывает индикатор выполнения. При необходимости
+пароль macOS вводится в скрытом поле панели и передаётся `sudo`. После успешного
+включения, выключения или перезапуска обновляются индикаторы `[ON/OFF]`, без
+перехода на экран JSON. Ошибки показываются отдельно; подробный статус доступен
+через пункт Status.
+
+В режиме `automatic` строка Server показывает выбранный ядром сервер отдельно
+для TUN и прокси. Пометка `fallback` означает использование резервного сервера.
+Сведения обновляются раз в несколько секунд и относятся к новым соединениям;
+уже открытые соединения могут продолжать использовать предыдущий сервер.
+Если служба запущена старой версией Whale, сведения появятся после её перезапуска.
+Подписочная ссылка в форме скрыта и передаётся дочерней команде через stdin.
+
+Все действия доступны и отдельными командами:
+
+```sh
+whale sub add       # вставьте ссылку на подписку в скрытый запрос
+whale tun up    # включите VPN для системы
+whale tun status   # проверьте состояние клиента
 ```
 
 Имя подписки определяется автоматически. По умолчанию клиент выбирает сервер
@@ -38,7 +74,7 @@ vctl tun status   # проверьте состояние клиента
 Для отключения:
 
 ```sh
-vctl tun stop
+whale tun down
 ```
 
 > [!NOTE]
@@ -54,21 +90,22 @@ vctl tun stop
 
 | Задача | Команда |
 | --- | --- |
-| Включить VPN | `vctl tun start` |
-| Выключить VPN | `vctl tun stop` |
-| Перезапустить | `vctl tun restart` |
-| Посмотреть состояние | `vctl tun status` |
-| Установить службу без запуска VPN | `vctl tun install` |
-| Удалить службу и остановить VPN | `vctl tun uninstall` |
-| Проверить задержку серверов | `vctl ping` |
-| Показать серверы и их ID | `vctl nodes` |
-| Выбрать сервер | `vctl use NODE_ID` |
-| Вернуть автоматический выбор | `vctl use auto` |
-| Обновить подписки | `vctl sub update` |
-| Показать правила | `vctl rule list` |
-| Открыть справку | `vctl --help` |
+| Открыть панель управления | `whale` |
+| Включить VPN | `whale tun up` |
+| Выключить VPN | `whale tun down` |
+| Перезапустить | `whale tun restart` |
+| Посмотреть состояние | `whale tun status` |
+| Установить службу без запуска VPN | `whale tun install` |
+| Удалить службу и остановить VPN | `whale tun uninstall` |
+| Проверить задержку серверов | `whale ping` |
+| Показать серверы и их ID | `whale nodes` |
+| Выбрать сервер | `whale use NODE_ID` |
+| Вернуть автоматический выбор | `whale use auto` |
+| Обновить подписки | `whale sub update` |
+| Показать правила | `whale rule list` |
+| Открыть справку | `whale --help` |
 
-Вместо `NODE_ID` подставьте ID из `vctl nodes`. Правила, подписки и выбранный
+Вместо `NODE_ID` подставьте ID из `whale nodes`. Правила, подписки и выбранный
 сервер сохраняются между запусками. Изменения настроек автоматически
 применяются работающим клиентом; текущие соединения могут прерваться.
 
@@ -77,15 +114,15 @@ vctl tun stop
 **Всё через VPN, выбранные сайты — напрямую:**
 
 ```sh
-vctl default proxy
-vctl rule add suffix example.org direct
+whale default proxy
+whale rule add suffix example.org direct
 ```
 
 **Только выбранные сайты через VPN:**
 
 ```sh
-vctl default direct
-vctl rule add suffix example.org proxy
+whale default direct
+whale rule add suffix example.org proxy
 ```
 
 Типы правил:
@@ -103,10 +140,10 @@ vctl rule add suffix example.org proxy
 Действия: `direct` — напрямую, `proxy` — через VPN, `block` — блокировать.
 
 ```sh
-vctl rule add suffix ads.example.net block
-vctl rule add cidr 203.0.113.0/24 direct
-vctl rule list
-vctl rule remove 2
+whale rule add suffix ads.example.net block
+whale rule add cidr 203.0.113.0/24 direct
+whale rule list
+whale rule remove 2
 ```
 
 Первое совпавшее пользовательское правило побеждает. Номер для удаления
@@ -118,9 +155,9 @@ vctl rule remove 2
 ### Приложения
 
 ```sh
-vctl rule add path /Applications/Firefox.app direct
-vctl rule add process curl proxy
-vctl rule add path /usr/bin/curl direct
+whale rule add path /Applications/Firefox.app direct
+whale rule add process curl proxy
+whale rule add path /usr/bin/curl direct
 ```
 
 Путь с окончанием `.app` автоматически превращается в правило для всего
@@ -140,10 +177,10 @@ vctl rule add path /usr/bin/curl direct
 Сначала загрузите базы:
 
 ```sh
-vctl geodata update
-vctl rule add geoip ru direct
-vctl rule add geosite youtube proxy
-vctl geodata status
+whale geodata update
+whale rule add geoip ru direct
+whale rule add geosite youtube proxy
+whale geodata status
 ```
 
 По умолчанию используются [базы Loyalsoldier](https://github.com/Loyalsoldier/v2ray-rules-dat).
@@ -160,14 +197,14 @@ vctl geodata status
 Пресет — именованный набор правил, который можно обновлять и отключать целиком:
 
 ```sh
-vctl preset add ads builtin:ads       # после geodata update
-vctl preset add work ./work.json
-vctl preset list
-vctl preset show work
-vctl preset disable work
-vctl preset enable work
-vctl preset update work
-vctl preset remove work
+whale preset add ads builtin:ads       # после geodata update
+whale preset add work ./work.json
+whale preset list
+whale preset show work
+whale preset disable work
+whale preset enable work
+whale preset update work
+whale preset remove work
 ```
 
 Вместо файла можно передать HTTPS-ссылку на JSON. Удалённые включённые пресеты
@@ -189,7 +226,7 @@ vctl preset remove work
 }
 ```
 
-Поддерживаются все типы из таблицы выше. Это формат vctl, а не произвольный
+Поддерживаются все типы из таблицы выше. Это формат whale, а не произвольный
 конфиг Xray или YAML Clash. Лимит — 2 МБ и 5000 правил на пресет.
 Встроенные пресеты: `builtin:lan` — частные сети напрямую,
 `builtin:ads` — блокировка `geosite:category-ads-all`.
@@ -198,10 +235,10 @@ vctl preset remove work
 ### DNS и доменные исключения
 
 ```sh
-vctl dns show
-vctl dns set --direct https://1.1.1.1/dns-query
-vctl dns set --proxy https://1.1.1.1/dns-query
-vctl dns set --strategy UseIPv4
+whale dns show
+whale dns set --direct https://1.1.1.1/dns-query
+whale dns set --proxy https://1.1.1.1/dns-query
+whale dns set --strategy UseIPv4
 ```
 
 Последняя команда полезна для проверки проблем с IPv6; стандартный режим —
@@ -223,13 +260,13 @@ FakeDNS не включён.
 ## Подписки
 
 ```sh
-vctl sub add                       # имя из ответа сервера
-vctl sub add home                  # собственное имя
-vctl sub add work --interval 3600  # обновление каждый час
-vctl sub list
-vctl sub update                    # обновить все
-vctl sub update home               # обновить одну
-vctl sub remove work
+whale sub add                       # имя из ответа сервера
+whale sub add home                  # собственное имя
+whale sub add work --interval 3600  # обновление каждый час
+whale sub list
+whale sub update                    # обновить все
+whale sub update home               # обновить одну
+whale sub remove work
 ```
 
 Подписки обновляются **каждые 12 часов**, пока клиент запущен. Интервал задаётся
@@ -266,17 +303,17 @@ vctl sub remove work
 без изменения системных маршрутов:
 
 ```sh
-vctl start
+whale up
 curl --proxy socks5h://127.0.0.1:2080 https://example.com
-vctl stop
+whale down
 ```
 
 | | Локальный прокси | Системный TUN |
 | --- | --- | --- |
-| Запуск | `vctl start` | `vctl tun start` |
-| Перезапуск | `vctl restart` | `vctl tun restart` |
-| Статус | `vctl status` | `vctl tun status` |
-| Остановка | `vctl stop` | `vctl tun stop` |
+| Запуск | `whale up` | `whale tun up` |
+| Перезапуск | `whale restart` | `whale tun restart` |
+| Статус | `whale status` | `whale tun status` |
+| Остановка | `whale down` | `whale tun down` |
 | SOCKS5 / HTTP | `2080` / `2081` | `2180` / `2181` |
 | Права root | Не нужны | Нужны |
 
@@ -293,17 +330,17 @@ vctl stop
 Перед обновлением остановите используемые режимы:
 
 ```sh
-vctl tun stop
-vctl stop
+whale tun down
+whale down
 brew update
-brew upgrade nagraver/vctl/vctl
+brew upgrade nagraver/vctl/whale
 ```
 
 После обновления запустите нужный режим снова. Для удаления также сначала
 остановите клиент, затем выполните:
 
 ```sh
-brew uninstall nagraver/vctl/vctl
+brew uninstall nagraver/vctl/whale
 ```
 
 Настройки в `~/.config/vctl` сохраняются при обновлении и удалении пакета.
@@ -319,7 +356,7 @@ brew uninstall nagraver/vctl/vctl
 Обычный прокси и TUN используют один файл.
 
 Меняйте настройки командами CLI. Для ручного редактирования сначала
-остановите оба режима, а после изменений выполните `vctl check`.
+остановите оба режима, а после изменений выполните `whale check`.
 
 <details>
 <summary>Структура каталога и дополнительные параметры</summary>
@@ -342,17 +379,17 @@ brew uninstall nagraver/vctl/vctl
 будут перезаписаны. Порты и путь к ядру задаются при запуске и в настройках
 не сохраняются.
 
-Другой профиль выбирается через `VCTL_HOME` или `--home`. Глобальные опции
+Другой профиль выбирается через `WHALE_HOME` или `--home`. Глобальные опции
 указываются перед подкомандой:
 
 ```sh
-vctl --home "$HOME/my-vpn-profile" sub add
-vctl --home "$HOME/my-vpn-profile" tun start
-vctl --core /absolute/path/to/xray check
+whale --home "$HOME/my-vpn-profile" sub add
+whale --home "$HOME/my-vpn-profile" tun start
+whale --core /absolute/path/to/xray check
 ```
 
 Для запуска, статуса и остановки указывайте один и тот же профиль.
-Приоритет выбора ядра: `--core`, `VCTL_CORE`, встроенный `.tools/xray`,
+Приоритет выбора ядра: `--core`, `WHALE_CORE`, встроенный `.tools/xray`,
 затем `xray` из PATH. При запуске из рабочей копии проекта профиль по умолчанию
 находится в её `.local/`.
 
@@ -364,20 +401,20 @@ vctl --core /absolute/path/to/xray check
 ## Диагностика
 
 ```sh
-vctl doctor           # версия ядра, профиль, состояние локального прокси
-vctl check --mode tun # проверка конфигурации без включения VPN
-vctl ping             # проверка соединений с серверами
-vctl tun status       # состояние TUN и последняя ошибка обновления
+whale doctor           # версия ядра, профиль, состояние локального прокси
+whale check --mode tun # проверка конфигурации без включения VPN
+whale ping             # проверка соединений с серверами
+whale tun status       # состояние TUN и последняя ошибка обновления
 ```
 
 | Проблема | Что проверить |
 | --- | --- |
-| Команда не найдена | Наличие Homebrew в PATH и результат `brew list vctl`. |
+| Команда не найдена | Наличие Homebrew в PATH и результат `brew list whale`. |
 | Подписка отклонена | Формат ответа и поддерживаемые параметры подключения. |
-| Выбранный сервер исчез | `vctl nodes`, затем `vctl use NODE_ID` или `vctl use auto`. |
-| TUN не запускается | `vctl ping`, доступ к sudo, занятость портов и `~/.config/vctl/tun/supervisor.log`. |
-| Ошибка обновления | Поле `error` в статусе и результат `vctl sub update`. |
-| После сбоя не восстановлен DNS | После остановки управляющего процесса — `vctl tun recover`. |
+| Выбранный сервер исчез | `whale nodes`, затем `whale use NODE_ID` или `whale use auto`. |
+| TUN не запускается | `whale ping`, доступ к sudo, занятость портов и `~/.config/vctl/tun/supervisor.log`. |
+| Ошибка обновления | Поле `error` в статусе и результат `whale sub update`. |
+| После сбоя не восстановлен DNS | После остановки управляющего процесса — `whale tun recover`. |
 
 `tun status` показывает наличие службы (`installed`), запрос на её работу
 (`enabled`), менеджер запуска и состояние VPN в `runtime`. `runtime: null`
@@ -385,7 +422,7 @@ vctl tun status       # состояние TUN и последняя ошибк�
 служба может запускаться или ожидать повторного запуска после ошибки.
 Статус выводится в JSON с отступами, переносами строк и подсветкой в терминале —
 `jq` для форматирования не нужен. При перенаправлении в файл или pipe цвет
-автоматически отключается; `NO_COLOR=1 vctl tun status` отключает его и в терминале.
+автоматически отключается; `NO_COLOR=1 whale tun status` отключает его и в терминале.
 `tun start`, `tun restart` и `tun stop` после успешного выполнения
 выводят такое же полное состояние службы. Форматированный статус также
 используется командами `status`, `start`, `restart` и `stop` локального прокси.
@@ -414,7 +451,7 @@ Mac отключён; включение выполняется вручную �
 
 ## Системная служба TUN
 
-`vctl tun start` устанавливает и запускает LaunchDaemon. Его запускает сама
+`whale tun up` устанавливает и запускает LaunchDaemon. Его запускает сама
 macOS, поэтому закрытие терминала не управляет временем жизни VPN и не должно
 учитывать его как фоновую работу Ghostty. Если ядро или управляющий процесс
 аварийно завершится, launchd повторит запуск; между попытками действует
@@ -422,12 +459,12 @@ macOS, поэтому закрытие терминала не управляе�
 запуск, затем останавливает VPN и восстанавливает DNS.
 
 ```sh
-vctl tun install     # регистрация службы без включения VPN
-vctl tun start
-vctl tun status
-vctl tun restart     # также переводит старый фоновый запуск на launchd
-vctl tun stop
-vctl tun uninstall   # удаление службы и её копий кода; настройки остаются
+whale tun install     # регистрация службы без включения VPN
+whale tun up
+whale tun status
+whale tun restart     # также переводит старый фоновый запуск на launchd
+whale tun down
+whale tun uninstall   # удаление службы и её копий кода; настройки остаются
 ```
 
 Команды установки и управления используют `sudo`; `sudoers` не изменяется.
@@ -439,15 +476,17 @@ vctl tun uninstall   # удаление службы и её копий кода
 `io.github.nagraver.vctl.<UID>.<PROFILE_HASH>.plist`. Код клиента и Xray
 копируются в защищённый каталог `/Library/Application Support/vctl/`.
 Это служебная копия программы: единственный файл настроек остаётся
-`~/.config/vctl/state.json` (либо в выбранном `--home`). Интерпретатор Python
-используется из установленного окружения; для Homebrew выбирается стабильный
-путь `opt`, сохраняющийся при обновлении патч-версии Python.
+`~/.config/vctl/state.json` (либо в выбранном `--home`). Служба запускает
+защищённую копию Go-бинарника Whale; интерпретатор Python ей не нужен.
 
 Временный флаг включения в `/var/run/` удаляется при остановке и не переживает
 перезагрузку. Поэтому восстановление после сбоя работает только до явной
 остановки или перезагрузки Mac. При переходе на службу команда `tun restart`
 сначала проверяет конфигурацию и доступность выбранного сервера; если запуск
 новой службы не удаётся, пытается восстановить предыдущий способ запуска.
+При явном выборе проверяется только выбранный сервер. В режиме `auto` проверки
+выполняются параллельно (до четырёх), и первый успешный ответ отменяет остальные.
+Команда `ping` по-прежнему проверяет весь список серверов.
 Смена процесса создаёт краткий перерыв соединений.
 
 ## Как устроены TUN и DNS
@@ -476,7 +515,7 @@ vctl tun uninstall   # удаление службы и её копий кода
 Значения DNS, изменённые другой программой, не перезаписываются. Защитный процесс
 выполняет очистку при аварии управляющего процесса.
 
-`vctl tun recover` нужен, если автоматическая очистка не завершилась. Он
+`whale tun recover` нужен, если автоматическая очистка не завершилась. Он
 завершает оставшееся ядро данного профиля, восстанавливает DNS по журналу и
 удаляет служебное состояние. При работающем управляющем процессе команда
 отказывается выполнять восстановление. Это не общая команда ремонта сети.
@@ -489,3 +528,13 @@ vctl tun uninstall   # удаление службы и её копий кода
 ---
 
 Разработка, тестирование и выпуск пакета: [руководство для разработчиков](docs/DEVELOPMENT.md).
+
+### Совместимость с vctl
+
+Единственная команда клиента — `whale`; старый псевдоним `vctl` удалён.
+`up` и `down` равнозначны `start` и `stop`, в том числе после `tun`.
+Для совместимости используется прежний единый профиль `~/.config/vctl`
+и прежний идентификатор LaunchDaemon `io.github.nagraver.vctl.…`.
+Переносить настройки или переустанавливать работающую службу не требуется.
+Переменные `WHALE_HOME` и `WHALE_CORE` имеют приоритет над прежними
+`VCTL_HOME` и `VCTL_CORE`, которые также поддерживаются.

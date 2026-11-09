@@ -1,0 +1,1048 @@
+{
+  "uris": [
+    "vless://11111111-1111-4111-8111-111111111111@example.com:443?type=tcp&security=reality&pbk=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&sni=example.com&sid=abcd&fp=chrome&flow=xtls-rprx-vision&encryption=none&spx=%2F#Example",
+    "vless://11111111-1111-4111-8111-111111111111@example.com:443?type=tcp&security=reality&pbk=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&sni=example.com&sid=abcd&fp=chrome&flow=xtls-rprx-vision&encryption=none&spx=%2F&fm=%7B%22tcp%22%3A%20%5B%7B%22type%22%3A%20%22fragment%22%2C%20%22settings%22%3A%20%7B%22packets%22%3A%20%22tlshello%22%2C%20%22length%22%3A%20%2210-20%22%2C%20%22delay%22%3A%20%220%22%7D%7D%5D%7D#Fragment",
+    "vless://11111111-1111-4111-8111-111111111111@example.com:443?type=ws&host=cdn.example.com&path=%2Fws&security=tls&pbk=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&sni=example.com&sid=abcd&fp=chrome&encryption=none&spx=%2F#Example",
+    "vless://11111111-1111-4111-8111-111111111111@example.com:443?type=grpc&serviceName=grpc&security=reality&pbk=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&sni=example.com&sid=abcd&fp=chrome&encryption=none&spx=%2F#Example",
+    "trojan://secret@example.org:443?security=tls&alpn=h2,http%2F1.1#Trojan"
+  ],
+  "nodes": [
+    {
+      "id": "ac4469cfbfc0d040",
+      "name": "Example",
+      "outbound": {
+        "type": "vless",
+        "server": "example.com",
+        "server_port": 443,
+        "uuid": "11111111-1111-4111-8111-111111111111",
+        "flow": "xtls-rprx-vision",
+        "tls": {
+          "enabled": true,
+          "server_name": "example.com",
+          "utls": {
+            "enabled": true,
+            "fingerprint": "chrome"
+          },
+          "reality": {
+            "enabled": true,
+            "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "short_id": "abcd"
+          }
+        }
+      }
+    },
+    {
+      "id": "fa24f4c0541c7a40",
+      "name": "Fragment",
+      "outbound": {
+        "type": "vless",
+        "server": "example.com",
+        "server_port": 443,
+        "uuid": "11111111-1111-4111-8111-111111111111",
+        "flow": "xtls-rprx-vision",
+        "tls": {
+          "enabled": true,
+          "server_name": "example.com",
+          "utls": {
+            "enabled": true,
+            "fingerprint": "chrome"
+          },
+          "reality": {
+            "enabled": true,
+            "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "short_id": "abcd"
+          }
+        },
+        "finalmask": {
+          "tcp": [
+            {
+              "type": "fragment",
+              "settings": {
+                "packets": "tlshello",
+                "length": "10-20",
+                "delay": "0"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "0e02ef2be0a045f3",
+      "name": "Example",
+      "outbound": {
+        "type": "vless",
+        "server": "example.com",
+        "server_port": 443,
+        "uuid": "11111111-1111-4111-8111-111111111111",
+        "tls": {
+          "enabled": true,
+          "server_name": "example.com",
+          "utls": {
+            "enabled": true,
+            "fingerprint": "chrome"
+          }
+        },
+        "transport": {
+          "type": "ws",
+          "path": "/ws",
+          "headers": {
+            "Host": "cdn.example.com"
+          }
+        }
+      }
+    },
+    {
+      "id": "b1fa01989ef4f9eb",
+      "name": "Example",
+      "outbound": {
+        "type": "vless",
+        "server": "example.com",
+        "server_port": 443,
+        "uuid": "11111111-1111-4111-8111-111111111111",
+        "tls": {
+          "enabled": true,
+          "server_name": "example.com",
+          "utls": {
+            "enabled": true,
+            "fingerprint": "chrome"
+          },
+          "reality": {
+            "enabled": true,
+            "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "short_id": "abcd"
+          }
+        },
+        "transport": {
+          "type": "grpc",
+          "service_name": "grpc"
+        }
+      }
+    },
+    {
+      "id": "f4d1b1700e3f9b21",
+      "name": "Trojan",
+      "outbound": {
+        "type": "trojan",
+        "server": "example.org",
+        "server_port": 443,
+        "password": "secret",
+        "tls": {
+          "enabled": true,
+          "server_name": "example.org",
+          "alpn": [
+            "h2",
+            "http/1.1"
+          ]
+        }
+      }
+    }
+  ],
+  "state": {
+    "version": 1,
+    "subscriptions": {
+      "demo": {
+        "url": "https://example.com/sub",
+        "interval": 43200,
+        "updated": 1,
+        "nodes": [
+          {
+            "id": "ac4469cfbfc0d040",
+            "name": "Example",
+            "outbound": {
+              "type": "vless",
+              "server": "example.com",
+              "server_port": 443,
+              "uuid": "11111111-1111-4111-8111-111111111111",
+              "flow": "xtls-rprx-vision",
+              "tls": {
+                "enabled": true,
+                "server_name": "example.com",
+                "utls": {
+                  "enabled": true,
+                  "fingerprint": "chrome"
+                },
+                "reality": {
+                  "enabled": true,
+                  "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                  "short_id": "abcd"
+                }
+              }
+            }
+          },
+          {
+            "id": "fa24f4c0541c7a40",
+            "name": "Fragment",
+            "outbound": {
+              "type": "vless",
+              "server": "example.com",
+              "server_port": 443,
+              "uuid": "11111111-1111-4111-8111-111111111111",
+              "flow": "xtls-rprx-vision",
+              "tls": {
+                "enabled": true,
+                "server_name": "example.com",
+                "utls": {
+                  "enabled": true,
+                  "fingerprint": "chrome"
+                },
+                "reality": {
+                  "enabled": true,
+                  "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                  "short_id": "abcd"
+                }
+              },
+              "finalmask": {
+                "tcp": [
+                  {
+                    "type": "fragment",
+                    "settings": {
+                      "packets": "tlshello",
+                      "length": "10-20",
+                      "delay": "0"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "id": "0e02ef2be0a045f3",
+            "name": "Example",
+            "outbound": {
+              "type": "vless",
+              "server": "example.com",
+              "server_port": 443,
+              "uuid": "11111111-1111-4111-8111-111111111111",
+              "tls": {
+                "enabled": true,
+                "server_name": "example.com",
+                "utls": {
+                  "enabled": true,
+                  "fingerprint": "chrome"
+                }
+              },
+              "transport": {
+                "type": "ws",
+                "path": "/ws",
+                "headers": {
+                  "Host": "cdn.example.com"
+                }
+              }
+            }
+          },
+          {
+            "id": "b1fa01989ef4f9eb",
+            "name": "Example",
+            "outbound": {
+              "type": "vless",
+              "server": "example.com",
+              "server_port": 443,
+              "uuid": "11111111-1111-4111-8111-111111111111",
+              "tls": {
+                "enabled": true,
+                "server_name": "example.com",
+                "utls": {
+                  "enabled": true,
+                  "fingerprint": "chrome"
+                },
+                "reality": {
+                  "enabled": true,
+                  "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                  "short_id": "abcd"
+                }
+              },
+              "transport": {
+                "type": "grpc",
+                "service_name": "grpc"
+              }
+            }
+          },
+          {
+            "id": "f4d1b1700e3f9b21",
+            "name": "Trojan",
+            "outbound": {
+              "type": "trojan",
+              "server": "example.org",
+              "server_port": 443,
+              "password": "secret",
+              "tls": {
+                "enabled": true,
+                "server_name": "example.org",
+                "alpn": [
+                  "h2",
+                  "http/1.1"
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    "rules": [
+      {
+        "kind": "suffix",
+        "value": "example.org",
+        "action": "direct"
+      },
+      {
+        "kind": "process",
+        "value": "curl",
+        "action": "proxy"
+      }
+    ],
+    "presets": {
+      "z": {
+        "source": "builtin:lan",
+        "enabled": true,
+        "interval": 43200,
+        "updated": 1,
+        "rules": [
+          {
+            "kind": "suffix",
+            "value": "foo.example",
+            "action": "block"
+          }
+        ]
+      },
+      "a": {
+        "source": "builtin:lan",
+        "enabled": true,
+        "interval": 43200,
+        "updated": 1,
+        "rules": [
+          {
+            "kind": "cidr",
+            "value": "192.0.2.0/24",
+            "action": "proxy"
+          }
+        ]
+      }
+    },
+    "selected": "auto",
+    "default": "proxy",
+    "test_url": "https://www.gstatic.com/generate_204"
+  },
+  "proxy": {
+    "log": {
+      "loglevel": "warning"
+    },
+    "inbounds": [
+      {
+        "tag": "socks-in",
+        "listen": "127.0.0.1",
+        "port": 2080,
+        "protocol": "socks",
+        "settings": {
+          "auth": "noauth",
+          "udp": true
+        },
+        "sniffing": {
+          "enabled": true,
+          "destOverride": [
+            "http",
+            "tls",
+            "quic"
+          ],
+          "routeOnly": false
+        }
+      },
+      {
+        "tag": "http-in",
+        "listen": "127.0.0.1",
+        "port": 2081,
+        "protocol": "http",
+        "settings": {},
+        "sniffing": {
+          "enabled": true,
+          "destOverride": [
+            "http",
+            "tls",
+            "quic"
+          ],
+          "routeOnly": false
+        }
+      }
+    ],
+    "dns": {
+      "servers": [
+        {
+          "address": "https://1.1.1.1/dns-query",
+          "tag": "dns-direct",
+          "domains": [
+            "domain:example.org"
+          ],
+          "skipFallback": true,
+          "finalQuery": true
+        },
+        {
+          "address": "https://1.1.1.1/dns-query",
+          "tag": "dns-proxy",
+          "domains": [
+            "domain:foo.example"
+          ],
+          "skipFallback": true,
+          "finalQuery": true
+        },
+        {
+          "address": "https://1.1.1.1/dns-query",
+          "tag": "dns-proxy"
+        }
+      ],
+      "tag": "dns-proxy",
+      "queryStrategy": "UseIP",
+      "disableFallbackIfMatch": true
+    },
+    "outbounds": [
+      {
+        "protocol": "vless",
+        "tag": "node-ac4469cfbfc0d040",
+        "settings": {
+          "vnext": [
+            {
+              "address": "example.com",
+              "port": 443,
+              "users": [
+                {
+                  "id": "11111111-1111-4111-8111-111111111111",
+                  "encryption": "none",
+                  "flow": "xtls-rprx-vision"
+                }
+              ]
+            }
+          ]
+        },
+        "streamSettings": {
+          "network": "tcp",
+          "security": "reality",
+          "realitySettings": {
+            "serverName": "example.com",
+            "fingerprint": "chrome",
+            "password": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "shortId": "abcd"
+          }
+        }
+      },
+      {
+        "protocol": "vless",
+        "tag": "node-fa24f4c0541c7a40",
+        "settings": {
+          "vnext": [
+            {
+              "address": "example.com",
+              "port": 443,
+              "users": [
+                {
+                  "id": "11111111-1111-4111-8111-111111111111",
+                  "encryption": "none",
+                  "flow": "xtls-rprx-vision"
+                }
+              ]
+            }
+          ]
+        },
+        "streamSettings": {
+          "network": "tcp",
+          "security": "reality",
+          "finalmask": {
+            "tcp": [
+              {
+                "type": "fragment",
+                "settings": {
+                  "packets": "tlshello",
+                  "length": "10-20",
+                  "delay": "0"
+                }
+              }
+            ]
+          },
+          "realitySettings": {
+            "serverName": "example.com",
+            "fingerprint": "chrome",
+            "password": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "shortId": "abcd"
+          }
+        }
+      },
+      {
+        "protocol": "vless",
+        "tag": "node-0e02ef2be0a045f3",
+        "settings": {
+          "vnext": [
+            {
+              "address": "example.com",
+              "port": 443,
+              "users": [
+                {
+                  "id": "11111111-1111-4111-8111-111111111111",
+                  "encryption": "none"
+                }
+              ]
+            }
+          ]
+        },
+        "streamSettings": {
+          "network": "ws",
+          "security": "tls",
+          "tlsSettings": {
+            "serverName": "example.com",
+            "fingerprint": "chrome"
+          },
+          "wsSettings": {
+            "path": "/ws",
+            "headers": {
+              "Host": "cdn.example.com"
+            }
+          }
+        }
+      },
+      {
+        "protocol": "vless",
+        "tag": "node-b1fa01989ef4f9eb",
+        "settings": {
+          "vnext": [
+            {
+              "address": "example.com",
+              "port": 443,
+              "users": [
+                {
+                  "id": "11111111-1111-4111-8111-111111111111",
+                  "encryption": "none"
+                }
+              ]
+            }
+          ]
+        },
+        "streamSettings": {
+          "network": "grpc",
+          "security": "reality",
+          "realitySettings": {
+            "serverName": "example.com",
+            "fingerprint": "chrome",
+            "password": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "shortId": "abcd"
+          },
+          "grpcSettings": {
+            "serviceName": "grpc"
+          }
+        }
+      },
+      {
+        "protocol": "trojan",
+        "tag": "node-f4d1b1700e3f9b21",
+        "settings": {
+          "servers": [
+            {
+              "address": "example.org",
+              "port": 443,
+              "password": "secret"
+            }
+          ]
+        },
+        "streamSettings": {
+          "network": "tcp",
+          "security": "tls",
+          "tlsSettings": {
+            "serverName": "example.org",
+            "alpn": [
+              "h2",
+              "http/1.1"
+            ]
+          }
+        }
+      },
+      {
+        "protocol": "freedom",
+        "tag": "direct",
+        "settings": {
+          "domainStrategy": "UseIP"
+        }
+      },
+      {
+        "protocol": "blackhole",
+        "tag": "block",
+        "settings": {}
+      },
+      {
+        "protocol": "dns",
+        "tag": "dns-out",
+        "settings": {}
+      }
+    ],
+    "routing": {
+      "domainStrategy": "IPOnDemand",
+      "rules": [
+        {
+          "type": "field",
+          "inboundTag": [
+            "dns-direct"
+          ],
+          "outboundTag": "direct"
+        },
+        {
+          "type": "field",
+          "inboundTag": [
+            "dns-proxy"
+          ],
+          "balancerTag": "auto"
+        },
+        {
+          "type": "field",
+          "port": "53",
+          "outboundTag": "dns-out"
+        },
+        {
+          "type": "field",
+          "domain": [
+            "domain:example.org"
+          ],
+          "outboundTag": "direct"
+        },
+        {
+          "type": "field",
+          "process": [
+            "curl"
+          ],
+          "balancerTag": "auto",
+          "inboundTag": [
+            "tun-in"
+          ]
+        },
+        {
+          "type": "field",
+          "domain": [
+            "domain:foo.example"
+          ],
+          "outboundTag": "block"
+        },
+        {
+          "type": "field",
+          "ip": [
+            "192.0.2.0/24"
+          ],
+          "balancerTag": "auto"
+        },
+        {
+          "type": "field",
+          "ip": [
+            "10.0.0.0/8",
+            "172.16.0.0/12",
+            "192.168.0.0/16",
+            "127.0.0.0/8",
+            "169.254.0.0/16",
+            "::1/128",
+            "fc00::/7",
+            "fe80::/10"
+          ],
+          "outboundTag": "direct"
+        },
+        {
+          "type": "field",
+          "network": "tcp,udp",
+          "balancerTag": "auto"
+        }
+      ],
+      "balancers": [
+        {
+          "tag": "auto",
+          "selector": [
+            "node-ac4469cfbfc0d040",
+            "node-fa24f4c0541c7a40",
+            "node-0e02ef2be0a045f3",
+            "node-b1fa01989ef4f9eb",
+            "node-f4d1b1700e3f9b21"
+          ],
+          "fallbackTag": "node-ac4469cfbfc0d040",
+          "strategy": {
+            "type": "leastPing"
+          }
+        }
+      ]
+    },
+    "observatory": {
+      "subjectSelector": [
+        "node-ac4469cfbfc0d040",
+        "node-fa24f4c0541c7a40",
+        "node-0e02ef2be0a045f3",
+        "node-b1fa01989ef4f9eb",
+        "node-f4d1b1700e3f9b21"
+      ],
+      "probeURL": "https://www.gstatic.com/generate_204",
+      "probeInterval": "5m",
+      "enableConcurrency": true
+    }
+  },
+  "tun": {
+    "log": {
+      "loglevel": "warning"
+    },
+    "inbounds": [
+      {
+        "tag": "socks-in",
+        "listen": "127.0.0.1",
+        "port": 2180,
+        "protocol": "socks",
+        "settings": {
+          "auth": "noauth",
+          "udp": true
+        },
+        "sniffing": {
+          "enabled": true,
+          "destOverride": [
+            "http",
+            "tls",
+            "quic"
+          ],
+          "routeOnly": false
+        }
+      },
+      {
+        "tag": "http-in",
+        "listen": "127.0.0.1",
+        "port": 2181,
+        "protocol": "http",
+        "settings": {},
+        "sniffing": {
+          "enabled": true,
+          "destOverride": [
+            "http",
+            "tls",
+            "quic"
+          ],
+          "routeOnly": false
+        }
+      },
+      {
+        "tag": "tun-in",
+        "protocol": "tun",
+        "settings": {
+          "mtu": 1500,
+          "gateway": [
+            "172.28.0.1/30"
+          ],
+          "autoSystemRoutingTable": [
+            "0.0.0.0/0",
+            "::/0"
+          ],
+          "autoOutboundsInterface": "auto"
+        },
+        "sniffing": {
+          "enabled": true,
+          "destOverride": [
+            "http",
+            "tls",
+            "quic"
+          ],
+          "routeOnly": false
+        }
+      }
+    ],
+    "dns": {
+      "servers": [
+        {
+          "address": "https://1.1.1.1/dns-query",
+          "tag": "dns-direct",
+          "domains": [
+            "domain:example.org"
+          ],
+          "skipFallback": true,
+          "finalQuery": true
+        },
+        {
+          "address": "https://1.1.1.1/dns-query",
+          "tag": "dns-proxy",
+          "domains": [
+            "domain:foo.example"
+          ],
+          "skipFallback": true,
+          "finalQuery": true
+        },
+        {
+          "address": "https://1.1.1.1/dns-query",
+          "tag": "dns-proxy"
+        }
+      ],
+      "tag": "dns-proxy",
+      "queryStrategy": "UseIP",
+      "disableFallbackIfMatch": true
+    },
+    "outbounds": [
+      {
+        "protocol": "vless",
+        "tag": "node-ac4469cfbfc0d040",
+        "settings": {
+          "vnext": [
+            {
+              "address": "example.com",
+              "port": 443,
+              "users": [
+                {
+                  "id": "11111111-1111-4111-8111-111111111111",
+                  "encryption": "none",
+                  "flow": "xtls-rprx-vision"
+                }
+              ]
+            }
+          ]
+        },
+        "streamSettings": {
+          "network": "tcp",
+          "security": "reality",
+          "realitySettings": {
+            "serverName": "example.com",
+            "fingerprint": "chrome",
+            "password": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "shortId": "abcd"
+          }
+        }
+      },
+      {
+        "protocol": "vless",
+        "tag": "node-fa24f4c0541c7a40",
+        "settings": {
+          "vnext": [
+            {
+              "address": "example.com",
+              "port": 443,
+              "users": [
+                {
+                  "id": "11111111-1111-4111-8111-111111111111",
+                  "encryption": "none",
+                  "flow": "xtls-rprx-vision"
+                }
+              ]
+            }
+          ]
+        },
+        "streamSettings": {
+          "network": "tcp",
+          "security": "reality",
+          "finalmask": {
+            "tcp": [
+              {
+                "type": "fragment",
+                "settings": {
+                  "packets": "tlshello",
+                  "length": "10-20",
+                  "delay": "0"
+                }
+              }
+            ]
+          },
+          "realitySettings": {
+            "serverName": "example.com",
+            "fingerprint": "chrome",
+            "password": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "shortId": "abcd"
+          }
+        }
+      },
+      {
+        "protocol": "vless",
+        "tag": "node-0e02ef2be0a045f3",
+        "settings": {
+          "vnext": [
+            {
+              "address": "example.com",
+              "port": 443,
+              "users": [
+                {
+                  "id": "11111111-1111-4111-8111-111111111111",
+                  "encryption": "none"
+                }
+              ]
+            }
+          ]
+        },
+        "streamSettings": {
+          "network": "ws",
+          "security": "tls",
+          "tlsSettings": {
+            "serverName": "example.com",
+            "fingerprint": "chrome"
+          },
+          "wsSettings": {
+            "path": "/ws",
+            "headers": {
+              "Host": "cdn.example.com"
+            }
+          }
+        }
+      },
+      {
+        "protocol": "vless",
+        "tag": "node-b1fa01989ef4f9eb",
+        "settings": {
+          "vnext": [
+            {
+              "address": "example.com",
+              "port": 443,
+              "users": [
+                {
+                  "id": "11111111-1111-4111-8111-111111111111",
+                  "encryption": "none"
+                }
+              ]
+            }
+          ]
+        },
+        "streamSettings": {
+          "network": "grpc",
+          "security": "reality",
+          "realitySettings": {
+            "serverName": "example.com",
+            "fingerprint": "chrome",
+            "password": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "shortId": "abcd"
+          },
+          "grpcSettings": {
+            "serviceName": "grpc"
+          }
+        }
+      },
+      {
+        "protocol": "trojan",
+        "tag": "node-f4d1b1700e3f9b21",
+        "settings": {
+          "servers": [
+            {
+              "address": "example.org",
+              "port": 443,
+              "password": "secret"
+            }
+          ]
+        },
+        "streamSettings": {
+          "network": "tcp",
+          "security": "tls",
+          "tlsSettings": {
+            "serverName": "example.org",
+            "alpn": [
+              "h2",
+              "http/1.1"
+            ]
+          }
+        }
+      },
+      {
+        "protocol": "freedom",
+        "tag": "direct",
+        "settings": {
+          "domainStrategy": "UseIP"
+        }
+      },
+      {
+        "protocol": "blackhole",
+        "tag": "block",
+        "settings": {}
+      },
+      {
+        "protocol": "dns",
+        "tag": "dns-out",
+        "settings": {}
+      }
+    ],
+    "routing": {
+      "domainStrategy": "IPOnDemand",
+      "rules": [
+        {
+          "type": "field",
+          "inboundTag": [
+            "dns-direct"
+          ],
+          "outboundTag": "direct"
+        },
+        {
+          "type": "field",
+          "inboundTag": [
+            "dns-proxy"
+          ],
+          "balancerTag": "auto"
+        },
+        {
+          "type": "field",
+          "port": "53",
+          "outboundTag": "dns-out"
+        },
+        {
+          "type": "field",
+          "domain": [
+            "domain:example.org"
+          ],
+          "outboundTag": "direct"
+        },
+        {
+          "type": "field",
+          "process": [
+            "curl"
+          ],
+          "balancerTag": "auto",
+          "inboundTag": [
+            "tun-in"
+          ]
+        },
+        {
+          "type": "field",
+          "domain": [
+            "domain:foo.example"
+          ],
+          "outboundTag": "block"
+        },
+        {
+          "type": "field",
+          "ip": [
+            "192.0.2.0/24"
+          ],
+          "balancerTag": "auto"
+        },
+        {
+          "type": "field",
+          "ip": [
+            "10.0.0.0/8",
+            "172.16.0.0/12",
+            "192.168.0.0/16",
+            "127.0.0.0/8",
+            "169.254.0.0/16",
+            "::1/128",
+            "fc00::/7",
+            "fe80::/10"
+          ],
+          "outboundTag": "direct"
+        },
+        {
+          "type": "field",
+          "network": "tcp,udp",
+          "balancerTag": "auto"
+        }
+      ],
+      "balancers": [
+        {
+          "tag": "auto",
+          "selector": [
+            "node-ac4469cfbfc0d040",
+            "node-fa24f4c0541c7a40",
+            "node-0e02ef2be0a045f3",
+            "node-b1fa01989ef4f9eb",
+            "node-f4d1b1700e3f9b21"
+          ],
+          "fallbackTag": "node-ac4469cfbfc0d040",
+          "strategy": {
+            "type": "leastPing"
+          }
+        }
+      ]
+    },
+    "observatory": {
+      "subjectSelector": [
+        "node-ac4469cfbfc0d040",
+        "node-fa24f4c0541c7a40",
+        "node-0e02ef2be0a045f3",
+        "node-b1fa01989ef4f9eb",
+        "node-f4d1b1700e3f9b21"
+      ],
+      "probeURL": "https://www.gstatic.com/generate_204",
+      "probeInterval": "5m",
+      "enableConcurrency": true
+    }
+  }
+}

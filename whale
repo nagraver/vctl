@@ -1,0 +1,17 @@
+#!/bin/sh
+set -eu
+launcher=$0
+while [ -L "$launcher" ]; do
+    target=$(readlink "$launcher")
+    case "$target" in
+        /*) launcher=$target ;;
+        *) launcher=$(dirname "$launcher")/$target ;;
+    esac
+done
+project_root=$(CDPATH= cd -- "$(dirname "$launcher")" && pwd)
+if [ ! -x "$project_root/dist/whale" ]; then
+    echo "Build whale first: make build" >&2
+    exit 1
+fi
+export WHALE_HOME="${WHALE_HOME:-${VCTL_HOME:-$project_root/.local}}"
+exec "$project_root/dist/whale" "$@"
