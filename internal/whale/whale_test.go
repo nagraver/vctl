@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
-	tea "github.com/charmbracelet/bubbletea"
 	"howett.net/plist"
 	"os"
 	"path/filepath"
@@ -73,7 +72,7 @@ func TestSubscriptionStrictAndDedup(t *testing.T) {
 	if e != nil || len(nodes) != 1 {
 		t.Fatalf("dedup: %v %d", e, len(nodes))
 	}
-	for _, bad := range []string{u + "\nvmess://secret", strings.Replace(u, "type=tcp", "type=xhttp", 1), strings.Replace(u, "#Example", "&fm=not-json#Example", 1), "<html>fail</html>"} {
+	for _, bad := range []string{u + "\nvless://invalid", strings.Replace(u, "type=tcp", "type=xhttp", 1), strings.Replace(u, "#Example", "&fm=not-json#Example", 1), "<html>fail</html>"} {
 		if _, e = ParseSubscription([]byte(bad)); e == nil {
 			t.Fatal("invalid subscription accepted")
 		} else if strings.Contains(e.Error(), "11111111") || strings.Contains(e.Error(), "secret") {
@@ -150,50 +149,6 @@ func TestServiceDefinitionAndLegacyLabel(t *testing.T) {
 		t.Fatal(e)
 	}
 }
-func TestAliasesAndCompletion(t *testing.T) {
-	a := &App{Home: t.TempDir()}
-	root := newCommand(a)
-	for _, path := range [][]string{{"up"}, {"start"}, {"down"}, {"stop"}, {"tun", "up"}, {"tun", "start"}, {"tun", "down"}, {"tun", "stop"}} {
-		c, _, e := root.Find(path)
-		if e != nil || c == root {
-			t.Fatal(path, e)
-		}
-	}
-	var b bytes.Buffer
-	if e := root.GenZshCompletion(&b); e != nil {
-		t.Fatal(e)
-	}
-	if !strings.Contains(b.String(), "whale") {
-		t.Fatal("missing completion")
-	}
-}
-func TestFormsAndNavigation(t *testing.T) {
-	m := uiModel{app: &App{}, state: fixture(t).State, page: "Home", width: 100, height: 35}
-	m.rebuild()
-	if len(m.items) < 10 {
-		t.Fatal("missing sections")
-	}
-	for _, page := range []string{"Servers", "Subscriptions", "Routing", "Presets", "DNS", "GeoIP / GeoSite", "Local proxy", "Service", "Diagnostics"} {
-		m.page = page
-		m.rebuild()
-		if len(m.items) == 0 {
-			t.Fatal("empty page", page)
-		}
-	}
-	m.openForm("subscription")
-	m.fields[0].input.SetValue("https://example.com/secret")
-	item, e := m.submit()
-	if e != nil {
-		t.Fatal(e)
-	}
-	if strings.Contains(strings.Join(item.args, " "), "secret") || !strings.Contains(item.stdin, "secret") {
-		t.Fatal("subscription secret must travel through stdin")
-	}
-	model, _ := m.Update(tea.KeyMsg{Type: tea.KeyEsc})
-	if model.(uiModel).form != "" {
-		t.Fatal("escape did not cancel form")
-	}
-}
 func TestRejectMaskRanges(t *testing.T) {
 	for _, length := range []string{"0", "-1", "20-10", "99999"} {
 		m := M{"tcp": []any{M{"type": "fragment", "settings": M{"packets": "tlshello", "length": length, "delay": "0"}}}}
@@ -214,17 +169,6 @@ func TestProtoCategory(t *testing.T) {
 		t.Fatal("truncated proto accepted")
 	}
 }
-func TestEmptyProfileUIAndNoninteractive(t *testing.T) {
-	m := uiModel{app: &App{}, state: emptyState(), page: "Servers", width: 80, height: 24}
-	m.rebuild()
-	if !strings.Contains(m.View(), "Servers") {
-		t.Fatal("missing view")
-	}
-	if exists(filepath.Join(t.TempDir(), "state.json")) {
-		t.Fatal("unexpected state")
-	}
-}
-
 func TestStoppedOutput(t *testing.T) {
 	var b bytes.Buffer
 	var status M

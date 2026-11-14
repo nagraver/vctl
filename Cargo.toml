@@ -1,0 +1,45 @@
+[package]
+name = "whale"
+version = "0.6.0"
+edition = "2024"
+rust-version = "1.100"
+description = "Native macOS VPN control plane for Xray"
+publish = false
+
+[lib]
+name = "whale"
+path = "src/lib.rs"
+
+[[bin]]
+name = "whale"
+path = "src/bin/whale.rs"
+
+[[bin]]
+name = "whale-helper"
+path = "src/bin/whale-helper.rs"
+
+[dependencies]
+anyhow = "1"
+base64 = "0.22"
+clap = { version = "4", features = ["derive"] }
+hex = "0.4"
+indexmap = { version = "2", features = ["serde"] }
+ipnet = "2"
+libc = "0.2"
+plist = "1"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls", "socks", "gzip"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+sha2 = "0.10"
+signal-hook = "0.3"
+socket2 = { version = "0.5", features = ["all"] }
+tempfile = "3"
+url = "2"
+
+[profile.release]
+lto = "thin"
+strip = true
+codegen-units = 1
+
+[lints.rust]
+unsafe_op_in_unsafe_fn = "deny"

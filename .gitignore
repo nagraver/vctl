@@ -2,3 +2,5 @@
 .local/
 dist/
 .DS_Store
+target/
+docs/superpowers/plans/

@@ -1,7 +1,8 @@
 package whale
 
 import (
-	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -28,7 +29,7 @@ func TestRealXrayLifecycle(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	binary := canonical("../../dist/whale")
+	binary := canonical("../../dist/whale-helper")
 	core := canonical("../../.tools/xray")
 	state := fixture(t).State
 	state.Subscriptions = Ordered[Subscription]{}
@@ -56,14 +57,25 @@ func TestRealXrayLifecycle(t *testing.T) {
 		}
 		return b
 	}
-	defer exec.Command(binary, "--home", dir, "down").Run()
+
 	l, e := net.Listen("tcp", "127.0.0.1:0")
 	if e != nil {
 		t.Fatal(e)
 	}
 	port := l.Addr().(*net.TCPAddr).Port
 	l.Close()
-	run("up", "--port", itoa(port))
+	child := exec.Command(os.Args[0], "-test.run=^TestSupervisorProcess$")
+	child.Env = append(os.Environ(), "WHALE_TEST_SUPERVISOR=1", "WHALE_TEST_PROFILE="+dir, "WHALE_TEST_CORE="+core, "WHALE_TEST_PORT="+itoa(port))
+	if e = child.Start(); e != nil {
+		t.Fatal(e)
+	}
+	defer func() { _ = Stop(s); _ = child.Process.Kill(); _ = child.Wait() }()
+	for i := 0; i < 100; i++ {
+		if r, _ := Control(s, "status"); r != nil {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 	before, e := Control(s, "status")
 	if e != nil || num(before, "pid") == 0 {
 		t.Fatal(before, e)
@@ -142,20 +154,14 @@ func TestRealXrayLifecycle(t *testing.T) {
 	if !changed {
 		t.Fatal("running supervisor did not apply routing change")
 	}
-	run("restart")
-	after, e := Control(s, "status")
-	if e != nil || num(after, "pid") == num(before, "pid") || num(after, "socks_port") != port {
-		t.Fatal("restart failed", after, e)
+	if e = Stop(s); e != nil {
+		t.Fatal(e)
 	}
-	run("stop")
 	stopped, e := Control(s, "status")
 	if e != nil || stopped != nil {
 		t.Fatal("stop failed", stopped, e)
 	}
-	var status M
-	if json.Unmarshal(run("status"), &status) != nil || str(status, "state") != "stopped" {
-		t.Fatal(status)
-	}
+
 }
 
 func TestWatchTerminatesOnSignal(t *testing.T) {
@@ -170,7 +176,7 @@ func TestWatchTerminatesOnSignal(t *testing.T) {
 	if e = writeJSON(filepath.Join(dir, "runtime.json"), M{"instance": "test", "pid": os.Getpid(), "core_pid": 0, "supervisor_command": processCommand(os.Getpid())}); e != nil {
 		t.Fatal(e)
 	}
-	cmd := exec.Command(canonical("../../dist/whale"), "--home", dir, "_watch", "test")
+	cmd := exec.Command(canonical("../../dist/whale-helper"), "--home", dir, "_watch", "test")
 	if e = cmd.Start(); e != nil {
 		t.Fatal(e)
 	}
@@ -189,4 +195,37 @@ func TestWatchTerminatesOnSignal(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("watchdog ignored SIGTERM")
 	}
+}
+
+// Exercise the shared supervisor without exposing a standalone proxy command.
+func TestSupervisorProcess(t *testing.T) {
+	if os.Getenv("WHALE_TEST_SUPERVISOR") != "1" {
+		return
+	}
+	s, e := NewStore(os.Getenv("WHALE_TEST_PROFILE"), "")
+	if e != nil {
+		t.Fatal(e)
+	}
+	var port int
+	_, e = fmt.Sscan(os.Getenv("WHALE_TEST_PORT"), &port)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if e = Serve(s, os.Getenv("WHALE_TEST_CORE"), "proxy", port); e != nil {
+		t.Fatal(e)
+	}
+}
+func Stop(s Store) error {
+	if _, e := Control(s, "stop"); e != nil {
+		return e
+	}
+	for i := 0; i < 250; i++ {
+		unlock, e := s.Lock("runtime.lock", true)
+		if e == nil {
+			unlock()
+			return nil
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	return errors.New("stop pending; check status")
 }

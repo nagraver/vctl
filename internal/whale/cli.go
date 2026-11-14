@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"regexp"
@@ -115,24 +116,17 @@ func output(w io.Writer, v any) error {
 var operationContext = context.Background()
 var operationCancel = func() {}
 
-func Execute() error {
+func ExecuteBackend() error {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 	operationContext = ctx
 	operationCancel = cancel
 	a := &App{Home: defaultHome()}
-	return newCommand(a).Execute()
+	return newBackendCommand(a).Execute()
 }
-func newCommand(a *App) *cobra.Command {
-	root := &cobra.Command{Use: "whale", Short: "Terminal VPN client powered by Xray", Version: Version, SilenceUsage: true, SilenceErrors: true, RunE: func(c *cobra.Command, args []string) error {
-		if len(args) > 0 {
-			return errors.New("unknown command")
-		}
-		if !term.IsTerminal(int(os.Stdin.Fd())) {
-			return errors.New("interactive mode requires a terminal; use whale --help")
-		}
-		return RunUI(a)
-	}}
+func newBackendCommand(a *App) *cobra.Command {
+	root := &cobra.Command{Use: "whale-helper", Short: "Whale internal application helper", Version: Version, SilenceUsage: true, SilenceErrors: true}
+
 	root.PersistentFlags().StringVar(&a.Home, "home", a.Home, "Profile directory")
 	root.PersistentFlags().StringVar(&a.StateHome, "state-home", a.StateHome, "Shared state directory")
 	_ = root.PersistentFlags().MarkHidden("state-home")
@@ -507,7 +501,42 @@ func newCommand(a *App) *cobra.Command {
 	_ = dc.RegisterFlagCompletionFunc("strategy", func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
 		return []string{"UseIP", "UseIPv4", "UseIPv6"}, cobra.ShellCompDirectiveNoFileComp
 	})
-	add(root, "ping", "Test server latency", 0, func(c *cobra.Command, args []string) error {
+	latencyCommand := add(root, "latency", "Stream TCP latency", 0, func(c *cobra.Command, _ []string) error {
+		_, v, e := read(c)
+		if e != nil {
+			return e
+		}
+		subscription, _ := c.Flags().GetString("subscription")
+		server, _ := c.Flags().GetString("server")
+		nodes, e := latencyNodes(v, subscription, server)
+		if e != nil {
+			return e
+		}
+		if len(nodes) == 0 {
+			return nil
+		}
+		iface, e := physicalInterface()
+		if e != nil {
+			return e
+		}
+		nic, e := net.InterfaceByName(iface)
+		if e != nil {
+			return e
+		}
+		ctx, cancel := context.WithCancel(operationContext)
+		defer cancel()
+		return streamLatency(ctx, nodes, func(ctx context.Context, n Node) latencyResult { return tcpLatency(ctx, n, nic.Index) }, c.OutOrStdout())
+	})
+
+	latencyCommand.Flags().String("subscription", "", "Subscription to check")
+	latencyCommand.Flags().String("server", "", "Server to check")
+
+	// Internal foreground entry point for recovery of an older TUN service.
+	foreground := add(root, "_serve", "TUN supervisor", 0, func(c *cobra.Command, _ []string) error {
+		mode, _ := c.Flags().GetString("mode")
+		if mode != "tun" {
+			return errors.New("standalone proxy mode has been removed")
+		}
 		s, _, e := read(c)
 		if e != nil {
 			return e
@@ -516,97 +545,12 @@ func newCommand(a *App) *cobra.Command {
 		if e != nil {
 			return e
 		}
-		iface, _ := physicalInterface()
-		p, e := Ping(s, core, iface)
-		if e != nil {
-			return e
-		}
-		ok := false
-		for _, r := range p {
-			delay := r.Error
-			if delay == "" {
-				ok = true
-				delay = itoa(r.Milliseconds) + " ms"
-			}
-			fmt.Fprintln(c.OutOrStdout(), r.Node.ID, delay, clean(r.Node.Name))
-		}
-		if !ok {
-			return errors.New("all servers failed probes")
-		}
-		return nil
+		port, _ := c.Flags().GetInt("port")
+		return Serve(s, core, "tun", port)
 	})
-	for _, action := range []string{"up", "down", "restart", "status", "run", "check", "doctor", "_serve"} {
-		action := action
-		c := add(root, action, "Proxy: "+action, 0, func(c *cobra.Command, args []string) error {
-			s, v, e := read(c)
-			if e != nil {
-				return e
-			}
-			if action == "status" || action == "down" {
-				if action == "down" {
-					if e = Stop(s); e != nil {
-						return e
-					}
-				}
-				r, e := Control(s, "status")
-				if e != nil {
-					return e
-				}
-				return output(c.OutOrStdout(), r)
-			}
-			core, e := a.core()
-			if e != nil {
-				return e
-			}
-			mode, _ := c.Flags().GetString("mode")
-			port, _ := c.Flags().GetInt("port")
-			switch action {
-			case "up":
-				e = Start(s, core, mode, port)
-			case "restart":
-				e = Restart(s, core, mode, port)
-			case "run", "_serve":
-				return Serve(s, core, mode, port)
-			case "check":
-				_, e = CheckedConfig(s, core, v, mode, port)
-				if e == nil {
-					fmt.Fprintln(c.OutOrStdout(), "Configuration valid")
-				}
-				return e
-			case "doctor":
-				r, err := Control(s, "status")
-				if err != nil {
-					return err
-				}
-				return output(c.OutOrStdout(), M{"version": Version, "core": core, "profile": s.Profile, "runtime": r})
-			}
-			if e != nil {
-				return e
-			}
-			r, e := Control(s, "status")
-			if e != nil {
-				return e
-			}
-			return output(c.OutOrStdout(), r)
-		})
-		if action == "up" {
-			c.Aliases = []string{"start"}
-		}
-		if action == "down" {
-			c.Aliases = []string{"stop"}
-		}
-		if action == "_serve" {
-			c.Hidden = true
-		}
-		if action == "up" || action == "run" || action == "restart" || action == "check" || action == "_serve" {
-			mode, port := "proxy", 2080
-			if action == "restart" {
-				mode, port = "", 0
-			}
-			c.Flags().String("mode", mode, "proxy or tun")
-			c.Flags().Int("port", port, "SOCKS port; HTTP uses port+1")
-		}
-	}
+	foreground.Hidden = true
+	foreground.Flags().String("mode", "tun", "Internal TUN mode")
+	foreground.Flags().Int("port", 2180, "Internal service port")
 	for _, parentName := range []string{"tun", "_tun"} {
 		parentName := parentName
 		tun := add(root, parentName, "System VPN", -1, nil)
@@ -630,14 +574,20 @@ func newCommand(a *App) *cobra.Command {
 					}
 					return output(c.OutOrStdout(), r)
 				}
-				cmd := privilegedCommand(canonical(a.Home), core, action, port)
-				cmd.Stdin = c.InOrStdin()
-				cmd.Stdout = c.OutOrStdout()
-				cmd.Stderr = c.ErrOrStderr()
-				if e := cmd.Run(); e != nil {
-					return errors.New("TUN command failed")
+				if _, e := controllerCall(a.Home, os.Getuid(), "status"); e != nil {
+					cmd := exec.Command("/usr/bin/sudo", executable(), "--home", canonical(a.Home), "_controller-install")
+					cmd.Stdin = c.InOrStdin()
+					cmd.Stdout = c.OutOrStdout()
+					cmd.Stderr = c.ErrOrStderr()
+					if e = cmd.Run(); e != nil {
+						return errors.New("system helper installation failed")
+					}
 				}
-				return nil
+				result, e := controllerCall(a.Home, os.Getuid(), action)
+				if e != nil {
+					return e
+				}
+				return output(c.OutOrStdout(), result)
 			})
 			if action == "up" {
 				c.Aliases = []string{"start"}
@@ -652,6 +602,38 @@ func newCommand(a *App) *cobra.Command {
 			c.Flags().Int("port", port, "SOCKS port")
 		}
 	}
+	add(root, "controller-status", "Check system helper", 0, func(c *cobra.Command, _ []string) error {
+		result, e := controllerCall(a.Home, os.Getuid(), "status")
+		if e != nil {
+			return e
+		}
+		return output(c.OutOrStdout(), result)
+	})
+	add(root, "control ACTION", "Control installed helper", 1, func(c *cobra.Command, args []string) error {
+		result, e := controllerCall(a.Home, os.Getuid(), args[0])
+		if e != nil {
+			return e
+		}
+		return output(c.OutOrStdout(), result)
+	})
+	installer := add(root, "_controller-install", "Install system helper", 0, func(c *cobra.Command, _ []string) error {
+		core, e := a.core()
+		if e != nil {
+			return e
+		}
+		return InstallController(a.Home, core)
+	})
+	installer.Hidden = true
+	controller := add(root, "_controller", "System helper entry point", 0, func(c *cobra.Command, _ []string) error {
+		uid, _ := c.Flags().GetInt("owner")
+		core, e := a.core()
+		if e != nil {
+			return e
+		}
+		return ServeController(a.Home, core, uid)
+	})
+	controller.Hidden = true
+	controller.Flags().Int("owner", -1, "Profile owner")
 	service := add(root, "_service", "LaunchDaemon entry point", 0, func(c *cobra.Command, args []string) error {
 		owner, _ := c.Flags().GetInt("owner")
 		port, _ := c.Flags().GetInt("port")
@@ -690,51 +672,24 @@ func newCommand(a *App) *cobra.Command {
 		return Watch(s, args[0])
 	})
 	watch.Hidden = true
-	completion := add(root, "completion zsh|bash|fish|powershell", "Shell completion", 1, func(c *cobra.Command, args []string) error {
-		switch args[0] {
-		case "zsh":
-			return root.GenZshCompletion(c.OutOrStdout())
-		case "bash":
-			return root.GenBashCompletionV2(c.OutOrStdout(), true)
-		case "fish":
-			return root.GenFishCompletion(c.OutOrStdout(), true)
-		case "powershell":
-			return root.GenPowerShellCompletionWithDesc(c.OutOrStdout())
+	add(root, "snapshot", "Application snapshot", 0, func(c *cobra.Command, args []string) error {
+		v, e := NativeSnapshot(a)
+		if e != nil {
+			return e
 		}
-		return errors.New("unknown shell")
+		return output(c.OutOrStdout(), v)
 	})
-	completion.ValidArgs = []string{"zsh", "bash", "fish", "powershell"}
-	for _, c := range root.Commands() {
-		switch c.Name() {
-		case "default":
-			c.ValidArgs = []string{"proxy", "direct"}
-		case "use":
-			c.ValidArgsFunction = func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
-				v, e := (Store{a.Home, a.Home}).Read()
-				out := []string{"auto"}
-				if e == nil {
-					for _, n := range v.Nodes() {
-						out = append(out, n.ID+"\t"+clean(n.Name))
-					}
-				}
-				return out, cobra.ShellCompDirectiveNoFileComp
-			}
-		case "sub":
-			for _, subcmd := range c.Commands() {
-				if subcmd.Name() == "update" || subcmd.Name() == "remove" {
-					subcmd.ValidArgsFunction = func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
-						v, _ := (Store{a.Home, a.Home}).Read()
-						return v.Subscriptions.Keys, cobra.ShellCompDirectiveNoFileComp
-					}
+	add(root, "rule-remove-match KIND VALUE ACTION", "Remove matching rule", 3, func(c *cobra.Command, args []string) error {
+		return saved(c, a.mutate(func(v *State) error {
+			for i, r := range v.Rules {
+				if r.Kind == args[0] && r.Value == args[1] && r.Action == args[2] {
+					v.Rules = append(v.Rules[:i], v.Rules[i+1:]...)
+					return nil
 				}
 			}
-		}
-		if c.Flags().Lookup("mode") != nil {
-			_ = c.RegisterFlagCompletionFunc("mode", func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
-				return []string{"proxy", "tun"}, cobra.ShellCompDirectiveNoFileComp
-			})
-		}
-	}
+			return errors.New("rule no longer exists; refresh and try again")
+		}))
+	})
 	root.CompletionOptions.DisableDefaultCmd = true
 	return root
 }

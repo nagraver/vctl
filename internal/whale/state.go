@@ -86,6 +86,7 @@ type Node struct {
 	Outbound M      `json:"outbound"`
 }
 type Subscription struct {
+	Skipped  int     `json:"skipped,omitempty"`
 	URL      string  `json:"url"`
 	Interval int     `json:"interval"`
 	Updated  float64 `json:"updated"`

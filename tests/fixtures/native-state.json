@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "subscriptions": {
+    "Example": {
+      "url": "https://example.invalid/subscription-private-token",
+      "interval": 43200,
+      "updated": 1,
+      "title": "Example",
+      "skipped": 2,
+      "nodes": [
+        {"id":"test-server", "name":"Тестовый сервер", "outbound":{"type":"trojan","server":"127.0.0.1","server_port":443,"password":"fixture-private-password"}},
+        {"id":"test-server", "name":"Duplicate", "outbound":{"type":"trojan","server":"127.0.0.1","server_port":443,"password":"fixture-private-password"}}
+      ]
+    }
+  },
+  "rules": [{"kind":"suffix","value":"example.org","action":"direct"}],
+  "selected": "test-server",
+  "default": "proxy",
+  "presets": {"Local":{"source":"builtin:lan","enabled":true,"interval":43200,"updated":1,"rules":[]}},
+  "dns": {"strategy":"UseIPv4"},
+  "geodata": {"geoip":{"url":"https://example.invalid/geoip.dat?token=fixture-private-token","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","updated":1,"interval":172800}},
+  "ui": {"language":"ru"}
+}

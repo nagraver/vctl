@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">Whale — кит с пивом</title>
+  <desc id="desc">Улыбающийся голубой кит держит в плавнике кружку золотистого пива на тёмно-синем фоне.</desc>
+  <defs>
+    <linearGradient id="bg" x1="160" y1="80" x2="880" y2="960" gradientUnits="userSpaceOnUse"><stop stop-color="#163B60"/><stop offset="1" stop-color="#091C35"/></linearGradient>
+    <linearGradient id="body" x1="260" y1="300" x2="600" y2="800" gradientUnits="userSpaceOnUse"><stop stop-color="#75E3F3"/><stop offset="1" stop-color="#249AD2"/></linearGradient>
+    <linearGradient id="beer" x1="720" y1="440" x2="720" y2="650" gradientUnits="userSpaceOnUse"><stop stop-color="#FFD776"/><stop offset="1" stop-color="#EDA22B"/></linearGradient>
+  </defs>
+  <rect x="40" y="40" width="944" height="944" rx="220" fill="url(#bg)"/>
+  <path d="M220 808C355 850 655 860 805 800" stroke="#235171" stroke-width="22" stroke-linecap="round"/>
+  <!-- Tail and body form one clear silhouette. -->
+  <path d="M336 573C275 568 247 531 238 480C196 482 160 458 143 422C128 486 139 541 182 578C158 617 159 657 181 695C198 649 228 638 263 655C284 741 369 791 484 786C618 780 695 696 690 578C686 458 617 355 507 346C393 336 308 418 313 516C314 537 323 557 336 573Z" fill="url(#body)" stroke="#0A2943" stroke-width="18" stroke-linejoin="round"/>
+  <path d="M310 656C351 700 404 724 481 720C565 716 631 681 679 620C663 716 595 775 484 780C402 784 343 751 310 703Z" fill="#B8F0EE"/>
+  <path d="M368 418C394 391 428 378 461 378" stroke="#B8F6F5" stroke-width="18" stroke-linecap="round" opacity=".75"/>
+  <!-- A tiny blowhole splash. -->
+  <path d="M471 307C464 269 445 250 422 239M481 302C491 264 515 242 544 237" stroke="#75E3F3" stroke-width="22" stroke-linecap="round"/>
+  <circle cx="409" cy="211" r="13" fill="#75E3F3"/>
+  <circle cx="564" cy="210" r="10" fill="#75E3F3"/>
+  <!-- Face. -->
+  <ellipse cx="560" cy="478" rx="16" ry="21" fill="#09283F"/>
+  <circle cx="565" cy="472" r="5" fill="white"/>
+  <path d="M587 536C602 550 621 550 636 535" stroke="#0A2943" stroke-width="11" stroke-linecap="round"/>
+  <ellipse cx="545" cy="535" rx="23" ry="12" fill="#F19FA3" opacity=".85"/>
+  <!-- Mug handle stays visible outside the flipper. -->
+  <path d="M801 461H832C866 461 880 481 880 514V546C880 581 862 599 830 599H804" stroke="#0A2943" stroke-width="48" stroke-linejoin="round"/>
+  <path d="M801 461H832C866 461 880 481 880 514V546C880 581 862 599 830 599H804" stroke="#E7F6EE" stroke-width="24" stroke-linejoin="round"/>
+  <path d="M662 424H811V619C811 637 798 650 780 650H694C676 650 662 637 662 619V424Z" fill="url(#beer)" stroke="#0A2943" stroke-width="16" stroke-linejoin="round"/>
+  <path d="M693 478V591M733 478V606M773 478V591" stroke="#FFF0B2" stroke-width="12" stroke-linecap="round" opacity=".8"/>
+  <path d="M657 438C638 428 641 401 661 394C655 366 685 349 706 365C718 338 751 340 764 362C789 350 817 366 813 391C837 396 841 426 823 439H755V464C755 477 734 477 734 464V438H657Z" fill="#FFF8E8" stroke="#0A2943" stroke-width="14" stroke-linejoin="round"/>
+  <path d="M664 414C679 407 691 409 700 416M769 392C781 386 790 389 796 397" stroke="#EADFCB" stroke-width="8" stroke-linecap="round"/>
+  <!-- The flipper wraps around the mug, so the whale is holding it. -->
+  <path d="M577 615C613 631 652 619 675 590C689 573 711 576 716 593C723 620 691 659 656 674C628 686 598 680 579 667" fill="#36AFDC" stroke="#0A2943" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M602 643C631 649 656 637 674 619" stroke="#77DEF0" stroke-width="10" stroke-linecap="round"/>
+  <!-- A restrained toast sparkle. -->
+  <path d="M849 300V336M831 318H867" stroke="#FFD776" stroke-width="10" stroke-linecap="round"/>
+</svg>

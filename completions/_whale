@@ -1,0 +1,2 @@
+#compdef whale
+_arguments '1:command:(up down status)' '--home[Profile directory]:directory:_directories' '--help[Show help]' '--version[Show version]'

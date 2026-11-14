@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"howett.net/plist"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -124,7 +123,7 @@ func (s Service) Install(core string, port int) error {
 	if loaded {
 		r, err := Control(s.Store, "status")
 		if err != nil || r != nil || exists(s.Marker) {
-			return errors.New("service is active; use whale tun restart")
+			return errors.New("service is active; use Reconnect in Whale")
 		}
 		if e = s.ctl("bootout", s.Target); e != nil {
 			return e
@@ -218,7 +217,7 @@ func (s Service) Up(core string, port int) error {
 		return e
 	}
 	if r != nil || exists(s.Marker) {
-		return errors.New("already running; use whale tun restart")
+		return errors.New("already running; use Reconnect in Whale")
 	}
 	if e = s.Preflight(core, port); e != nil {
 		return e
@@ -274,7 +273,7 @@ func (s Service) Restart(core string, port int) error {
 			restore = Start(s.Store, core, "tun", oldPort)
 		}
 		if restore != nil {
-			return errors.New("new service failed and rollback failed; run whale tun status")
+			return errors.New("new service failed and rollback failed; run whale status")
 		}
 		return errors.New("new service failed; previous VPN restored")
 	}
@@ -348,7 +347,4 @@ func TunAction(profile, core, action string, port int) (M, error) {
 		return nil, e
 	}
 	return s.Status(), nil
-}
-func privilegedCommand(home, core, action string, port int) *exec.Cmd {
-	return exec.Command("/usr/bin/sudo", executable(), "--home", home, "--core", core, "_tun", action, "--port", itoa(port))
 }

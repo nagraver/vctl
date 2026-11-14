@@ -2,9 +2,6 @@ package whale
 
 import (
 	"context"
-	"errors"
-	"github.com/charmbracelet/bubbles/viewport"
-	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -70,31 +67,5 @@ func TestPreflightAllFailed(t *testing.T) {
 	s.Selected = "auto"
 	if err := preflightServers(context.Background(), s, func(_ context.Context, n Node) Probe { return Probe{Node: n, Error: "offline"} }); err == nil {
 		t.Fatal("failed nodes accepted")
-	}
-}
-func TestLifecycleResultsStayInMenu(t *testing.T) {
-	for _, args := range [][]string{{"up"}, {"down"}, {"tun", "up"}, {"tun", "down"}, {"tun", "restart"}} {
-		if !quietLifecycle(args) {
-			t.Fatal(args)
-		}
-	}
-	if quietLifecycle([]string{"tun", "status"}) || quietLifecycle([]string{"status"}) {
-		t.Fatal("status suppressed")
-	}
-	m := uiModel{app: &App{Home: t.TempDir()}, quietSuccess: true, busy: true, page: "Home", view: viewport.New(80, 20)}
-	next, _ := m.Update(resultMsg{out: `{"runtime":{}}`})
-	got := next.(uiModel)
-	if got.result != "" || got.busy || got.quietSuccess {
-		t.Fatal("success opened results", got.result)
-	}
-	next, _ = m.Update(resultMsg{out: "diagnostic detail", err: errors.New("failure")})
-	got = next.(uiModel)
-	if !strings.Contains(got.result, "diagnostic detail") || !strings.Contains(got.result, "failure") {
-		t.Fatal("error hidden")
-	}
-	m.quietSuccess = false
-	next, _ = m.Update(resultMsg{out: `{"runtime":{}}`})
-	if next.(uiModel).result == "" {
-		t.Fatal("explicit status hidden")
 	}
 }

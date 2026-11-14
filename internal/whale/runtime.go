@@ -11,7 +11,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -27,7 +26,7 @@ import (
 func itoa(v int) string  { return strconv.Itoa(v) }
 func executable() string { p, _ := os.Executable(); return canonical(p) }
 func Core(override string) (string, error) {
-	candidates := []string{override, os.Getenv("WHALE_CORE"), os.Getenv("VCTL_CORE"), filepath.Join(filepath.Dir(executable()), ".tools/xray"), filepath.Join(filepath.Dir(executable()), "../libexec/xray"), filepath.Join(filepath.Dir(executable()), "../.tools/xray"), filepath.Join(filepath.Dir(executable()), "../libexec/.tools/xray")}
+	candidates := []string{override, os.Getenv("WHALE_CORE"), os.Getenv("VCTL_CORE"), filepath.Join(filepath.Dir(executable()), "xray"), filepath.Join(filepath.Dir(executable()), ".tools/xray"), filepath.Join(filepath.Dir(executable()), "../libexec/xray"), filepath.Join(filepath.Dir(executable()), "../.tools/xray"), filepath.Join(filepath.Dir(executable()), "../libexec/.tools/xray")}
 	if p, e := exec.LookPath("xray"); e == nil {
 		candidates = append(candidates, p)
 	}
@@ -192,20 +191,6 @@ func Control(s Store, op string) (M, error) {
 	e = json.Unmarshal(b[:n], &status)
 	return status, e
 }
-func Stop(s Store) error {
-	if _, e := Control(s, "stop"); e != nil {
-		return e
-	}
-	for i := 0; i < 250; i++ {
-		unlock, e := s.Lock("runtime.lock", true)
-		if e == nil {
-			unlock()
-			return nil
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-	return errors.New("stop pending; check status")
-}
 func Start(s Store, core, mode string, port int) error {
 	if v, e := Control(s, "status"); e != nil {
 		return e
@@ -247,38 +232,6 @@ func Start(s Store, core, mode string, port int) error {
 	_ = c.Process.Signal(syscall.SIGTERM)
 	return errors.New("startup timed out")
 }
-func Restart(s Store, core, mode string, port int) error {
-	old, e := Control(s, "status")
-	if e != nil {
-		return e
-	}
-	if mode == "" {
-		mode = str(old, "mode")
-		if mode == "" {
-			mode = "proxy"
-		}
-	}
-	if port == 0 {
-		port = num(old, "socks_port")
-		if port == 0 {
-			port = 2080
-			if mode == "tun" {
-				port = 2180
-			}
-		}
-	}
-	v, e := s.Read()
-	if e != nil {
-		return e
-	}
-	if _, e = CheckedConfig(s, core, v, mode, port); e != nil {
-		return e
-	}
-	if e = Stop(s); e != nil {
-		return e
-	}
-	return Start(s, core, mode, port)
-}
 
 type Probe struct {
 	Node         Node
@@ -286,46 +239,6 @@ type Probe struct {
 	Error        string
 }
 
-func Ping(s Store, core, iface string) ([]Probe, error) {
-	state, e := s.Read()
-	if e != nil {
-		return nil, e
-	}
-	u, e := url.Parse(state.TestURL)
-	if e != nil || u.Scheme != "https" {
-		return nil, errors.New("probe URL must use HTTPS")
-	}
-	nodes := state.Nodes()
-	if len(nodes) == 0 {
-		return nil, errors.New("add a subscription first")
-	}
-	results := make([]Probe, len(nodes))
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, 4)
-	for i, n := range nodes {
-		wg.Add(1)
-		go func(i int, n Node) {
-			defer wg.Done()
-			sem <- struct{}{}
-			defer func() { <-sem }()
-			results[i] = probe(s, core, state, n, iface)
-		}(i, n)
-	}
-	wg.Wait()
-	sort.SliceStable(results, func(i, j int) bool {
-		if results[i].Error != "" {
-			return false
-		}
-		if results[j].Error != "" {
-			return true
-		}
-		return results[i].Milliseconds < results[j].Milliseconds
-	})
-	return results, nil
-}
-func probe(s Store, core string, state State, n Node, iface string) Probe {
-	return probeContext(operationContext, s, core, state, n, iface)
-}
 func probeContext(ctx context.Context, s Store, core string, state State, n Node, iface string) Probe {
 	fail := Probe{n, 0, "HTTPS probe failed"}
 	if ctx.Err() != nil {

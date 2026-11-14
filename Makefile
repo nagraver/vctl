@@ -1,16 +1,30 @@
 VERSION := $(shell cat VERSION)
-LDFLAGS := -s -w -X github.com/nagraver/vctl/internal/whale.Version=$(VERSION)
+CARGO ?= $(if $(wildcard $(HOME)/.cargo/bin/cargo),$(HOME)/.cargo/bin/cargo,cargo)
+export MACOSX_DEPLOYMENT_TARGET := 13.0
 
-.PHONY: build test integration clean
+.PHONY: build test integration clean app test-native legacy-test
 build:
-	go build -trimpath -ldflags '$(LDFLAGS)' -o dist/whale ./cmd/whale
+	$(CARGO) build --release --locked
+	mkdir -p dist
+	cp target/release/whale target/release/whale-helper dist/
 
 test:
-	go test -race ./...
-	go vet ./...
+	$(CARGO) test --locked
+	$(CARGO) fmt --check
+	$(CARGO) clippy --all-targets --locked -- -D warnings
 
-integration: build
-	WHALE_INTEGRATION=1 go test -race ./...
+integration:
+	WHALE_TEST_CORE="$(CURDIR)/.tools/xray" $(CARGO) test --locked --test xray_contract
 
 clean:
-	rm -rf dist
+	$(CARGO) clean
+
+app: build
+	sh scripts/build-app.sh
+
+test-native: build
+	sh scripts/test-native.sh
+
+legacy-test:
+	go test -race ./...
+	go vet ./...

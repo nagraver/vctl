@@ -248,15 +248,21 @@ func decode64(s string) ([]byte, error) {
 	return nil, errors.New("expected plain or Base64 URI subscription")
 }
 func ParseSubscription(b []byte) ([]Node, error) {
+	nodes, _, err := parseSubscriptionDetails(b)
+	return nodes, err
+}
+func parseSubscriptionDetails(b []byte) ([]Node, int, error) {
+	skipped := 0
 	if len(b) > 2000000 {
-		return nil, errors.New("subscription exceeds 2 MB")
+		return nil, skipped, errors.New("subscription exceeds 2 MB")
 	}
 	s := strings.TrimSpace(strings.TrimPrefix(string(b), "\ufeff"))
-	if !strings.HasPrefix(s, "vless://") && !strings.HasPrefix(s, "trojan://") {
+	uriPrefix := regexp.MustCompile(`^[A-Za-z][A-Za-z0-9+.-]*://`)
+	if !uriPrefix.MatchString(s) {
 		var e error
 		b, e = decode64(s)
 		if e != nil {
-			return nil, e
+			return nil, skipped, e
 		}
 		s = string(b)
 	}
@@ -267,9 +273,13 @@ func ParseSubscription(b []byte) ([]Node, error) {
 		if line == "" {
 			continue
 		}
+		if uriPrefix.MatchString(line) && !strings.HasPrefix(line, "vless://") && !strings.HasPrefix(line, "trojan://") {
+			skipped++
+			continue
+		}
 		n, e := ParseURI(line)
 		if e != nil {
-			return nil, fmt.Errorf("subscription entry #%d: %w; cache preserved", i+1, e)
+			return nil, skipped, fmt.Errorf("subscription entry #%d: %w; cache preserved", i+1, e)
 		}
 		if !seen[n.ID] {
 			out = append(out, n)
@@ -277,9 +287,12 @@ func ParseSubscription(b []byte) ([]Node, error) {
 		}
 	}
 	if len(out) == 0 {
-		return nil, errors.New("empty subscription")
+		if skipped > 0 {
+			return nil, skipped, errors.New("subscription has no supported VLESS or Trojan servers; cache preserved")
+		}
+		return nil, skipped, errors.New("empty subscription")
 	}
-	return out, nil
+	return out, skipped, nil
 }
 func download(address string, limit int64) ([]byte, http.Header, error) {
 	u, e := url.Parse(address)
@@ -319,7 +332,7 @@ func Fetch(address string, interval int) (Subscription, error) {
 	if e != nil {
 		return Subscription{}, e
 	}
-	nodes, e := ParseSubscription(b)
+	nodes, skipped, e := parseSubscriptionDetails(b)
 	if e != nil {
 		return Subscription{}, e
 	}
@@ -333,5 +346,5 @@ func Fetch(address string, interval int) (Subscription, error) {
 		u, _ := url.Parse(address)
 		title = u.Hostname()
 	}
-	return Subscription{address, interval, float64(time.Now().Unix()), nodes, title}, nil
+	return Subscription{URL: address, Interval: interval, Updated: float64(time.Now().Unix()), Nodes: nodes, Title: title, Skipped: skipped}, nil
 }

@@ -1,0 +1,52 @@
+name: macOS checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  macos-arm64:
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "13.0"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup show
+          cargo --version
+      - name: Download reviewed Xray
+        run: |
+          test "$(uname -m)" = arm64
+          mkdir -p .tools
+          curl --fail --location --proto '=https' --proto-redir '=https' \
+            --output "$RUNNER_TEMP/xray.zip" \
+            https://github.com/XTLS/Xray-core/releases/download/v26.9.9/Xray-macos-arm64-v8a.zip
+          echo "b7cf765d60ccc703853d4218c49a1eacc5bca764543b9540bdeaf45c951afc7d  $RUNNER_TEMP/xray.zip" | shasum -a 256 --check
+          unzip -p "$RUNNER_TEMP/xray.zip" xray > .tools/xray
+          chmod 755 .tools/xray
+          expected=$(awk '$2 == "arm64" {print $1}' XRAY_SHA256)
+          echo "$expected  .tools/xray" | shasum -a 256 --check
+      - name: Rust tests, formatting, and lint
+        run: make test
+      - name: Real engine and SwiftUI contracts
+        run: |
+          make integration
+          make test-native
+      - name: Build and verify native application
+        run: |
+          make app
+          codesign --verify --deep --strict dist/Whale.app
+          sh -n scripts/package-release.sh
+          ruby -c Formula/whale.rb

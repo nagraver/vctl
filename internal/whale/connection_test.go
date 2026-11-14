@@ -1,9 +1,7 @@
 package whale
 
 import (
-	tea "github.com/charmbracelet/bubbletea"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 )
@@ -47,44 +45,5 @@ func TestTunSummaryFreshness(t *testing.T) {
 	}
 	if readTunSelection(dir, "pid = 123") != nil {
 		t.Fatal("stale summary accepted")
-	}
-}
-func TestUISelectionAndActivity(t *testing.T) {
-	m := uiModel{width: 120, height: 40, page: "Home", tunState: "on", proxyState: "off", state: fixture(t).State, tunServer: M{"name": "Chosen server", "fallback": true}}
-	m.state.Selected = "auto"
-	m.rebuild()
-	if m.items[1].page != "Local proxy" || len(m.items[1].args) != 0 {
-		t.Fatal("proxy entry is not consolidated")
-	}
-	count := 0
-	for _, item := range m.items {
-		if item.page == "Local proxy" {
-			count++
-		}
-	}
-	if count != 1 {
-		t.Fatal("duplicate proxy menu")
-	}
-	if !strings.Contains(m.View(), "automatic — TUN: Chosen server (fallback)") {
-		t.Fatal(m.View())
-	}
-	m.startActivity("Restarting TUN…")
-	if !strings.Contains(m.View(), "Subscriptions") || !strings.Contains(m.View(), "Restarting TUN…") {
-		t.Fatal("menu disappeared during operation")
-	}
-	_, cmd := m.Update(activityMsg{m.started.Add(-time.Second)})
-	if cmd != nil {
-		t.Fatal("old spinner continues into next operation")
-	}
-	model, _ := m.Update(authRequiredMsg{menuItem{args: []string{"tun", "restart"}}})
-	m = model.(uiModel)
-	m.password.SetValue("secret-value")
-	if strings.Contains(m.View(), "secret-value") {
-		t.Fatal("password exposed")
-	}
-	model, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
-	m = model.(uiModel)
-	if m.auth != nil || m.password.Value() != "" {
-		t.Fatal("cancel retained password")
 	}
 }
